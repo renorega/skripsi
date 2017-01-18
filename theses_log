@@ -1,9 +1,15 @@
+JADWAL BEKERJA REGA
+HARI SENIN - JUMAT
+MAKSIMAL SELESAI JAM 17.00 WIB
+LIBUR SABTU - MINGGU DAN TANGGAL MERAH NO LAPTOP NO CODE NO SKRIPSHIT PLEASE DO SOMETHING DIFFERENT!
+
 Catatan Progress Pekerjaan Skripsi
 Reno Ghaffur Bagasjvara
 Automated Detection and Classification of White Blood Cells and Acute L
 
 18 Januari 2017
 
+Hal yang sudah dilakukan
 1. Merapikan direktori file di dalam folder /home/reno/skripsi
 2. Menghapus file yang tidak dibutuhkan di folder skripsi 
 3. Mengganti nama folder skripsi_workspace menjadi skripsi
@@ -11,3 +17,15 @@ Automated Detection and Classification of White Blood Cells and Acute L
 5. Menginisialisasi penggunaan Git di folder .../skripsi/source
 6. Memindahkan proposal_skripsi_final_revision ke folder skripsi
 7. Membuat pseudocode K-Means dan Moving K-Means
+8. Membuat master theses code
+9. Membuat file 
+10. Sampai di median filtering, mungkin lebih baik med.filter dilakukan habis segmentasi
+
+Catatan
+1. Jurnal [9]
+- Alasan ranah warna HSV digunakan 
+Therefore, HSV color space is a suitable alternative for image representation,and the color channels are uncorrelated
+- Alasan melakukan histogram equalization di ranah warna V karena hist. equalization digunakan untuk menyeimbangkan intensitas cahaya sedangkan intensitas cahaya diintrepretasikan dengan nilai V
+In HSV, Hue corresponds directly to the concept of hue in the color, Saturation corresponds directly to the concept of tint in the color, and Value corresponds directly to the concept of intensity in the color and matches human perception of lightness while the color information is represented in two components, that is, H and S. Then Histogram equalization is applied on V band for equalizing the gray level of image
+intensities.
+2. Catatan ditulis di BUKU!
