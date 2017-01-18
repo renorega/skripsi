@@ -1,0 +1,19 @@
+Pseudocode Of K-Means
+
+START
+READ input data
+CALCULATE numbers of input data
+INITIALIZE value of k
+INITIALIZE maximum iterations, target accuracy, and total distance
+INITIALIZE label for data
+REPEAT
+	INITIALIZE and CALCULATE centers
+	GROUP each data to label with the nearest centers
+	CALCULATE new centers
+	CALCULATE current accuracy
+	INCREMENT iterations
+UNTIL (iterations<=maximum iterations or accuracy<=target accuracy)
+STOP
+
+Pseudocode of Moving K-Means
+
