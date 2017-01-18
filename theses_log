@@ -19,7 +19,9 @@ Hal yang sudah dilakukan
 7. Membuat pseudocode K-Means dan Moving K-Means
 8. Membuat master theses code
 9. Membuat file 
-10. Sampai di median filtering, mungkin lebih baik med.filter dilakukan habis segmentasi
+10.Sampai di median filtering, mungkin lebih baik med.filter dilakukan habis segmentasi
+11.Resolved bug in QT-Creator - Menu Bar missing with command sudo apt-get remove appmenu-qt5
+12.Buat GIT di QT Creator
 
 Catatan
 1. Jurnal [9]
@@ -29,3 +31,7 @@ Therefore, HSV color space is a suitable alternative for image representation,an
 In HSV, Hue corresponds directly to the concept of hue in the color, Saturation corresponds directly to the concept of tint in the color, and Value corresponds directly to the concept of intensity in the color and matches human perception of lightness while the color information is represented in two components, that is, H and S. Then Histogram equalization is applied on V band for equalizing the gray level of image
 intensities.
 2. Catatan ditulis di BUKU!
+
+To Done List Tomorrow
+1. Applying KMeans with two ways with different branches
+2. Understanding K-Means library while making preparations of Moving K-Means
