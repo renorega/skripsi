@@ -11,7 +11,8 @@ REPEAT
 	CALCULATE new centers as the mean of its members
 	CALCULATE current accuracy
 	INCREMENT iterations
-UNTIL (iterations>maximum iterations OR accuracy>target accuracy OR minimal distance are obtained)
+	CALCULATE total distance
+UNTIL (iterations>maximum iterations OR accuracy>target accuracy OR minimal total distance are obtained)
 STOP
 
 Pseudocode of Moving K-Means
@@ -40,8 +41,5 @@ REPEAT
 	CALCULATE new centers as the mean of its members
 	CALCULATE alphaA = alpha0 and alphaB=alphaB-alphaB/number of labels
 	INCREMENT iterations
-UNTIL (smallesFitness >= alphaB * largestFitness OR iterations > maximum iterations OR accuracy > target accuracy OR minimal distance are obtained)
-
-
-
-
+	CALCULATE total distance
+UNTIL (smallesFitness >= alphaB * largestFitness OR iterations > maximum iterations OR accuracy > target accuracy OR minimal total distance are obtained)
