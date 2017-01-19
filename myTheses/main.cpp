@@ -8,7 +8,8 @@ int main(int argc, char *argv[])
     //loading image
     Mat img,imgHSV,imgHSVFull;
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/103-107.jpg",IMREAD_COLOR);
+
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/5-7.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
