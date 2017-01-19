@@ -48,3 +48,7 @@ Hal yang sudah dilakukan :
 3. Mengaplikasikan kmeans di ranah warna HSV di komponen S 
 4. Akhirnya menggunakan kmeans12 atau cara 1 (bukan reshape) tanpa menggunakan informasi img.rows dan img.cols
 5. Merge branch master dengan branch kmeans12
+6. Membuat branch baru untuk mencoba mendapatkan label dengan nilai rata-rata S tertinggi
+
+To Done List Tomorro
+Membuat program untuk mendapatkan label dengan nilai rata-rata S tertinggi
