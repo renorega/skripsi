@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     //loading image
     Mat img,imgHSV,imgHSVFull;
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/5-7.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/103-107.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
@@ -96,10 +96,12 @@ int main(int argc, char *argv[])
     split(imgMedianFull, imgKFull);
 
     // show S-channel from images
+    /*
     namedWindow("S",WINDOW_NORMAL);
     imshow("S", imgK[1]);
     namedWindow("SFull",WINDOW_NORMAL);
     imshow("SFull", imgKFull[1]);
+    */
 
     //Aplikasikan algoritma KMEANS
     //buat matrix P kosong dengan ukuran row = column x row, col=1 dan tipe CV_32F
@@ -123,23 +125,37 @@ int main(int argc, char *argv[])
             TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0),
             3, KMEANS_PP_CENTERS, centers2);
 
-    // Untuk mencari label dengan rata-rata nilai S tertinggi
+    // Mencari label dengan rata-rata nilai S tertinggi
     float sat[K] = {0,0,0,0}; // variable untuk mencari nilai S tertinggi
+    int div[K] = {0,0,0,0}; // untuk menghitung total area dari label
     for (int label=0;label<K;label++)
     {
         for(int i=0;i<img.rows*img.cols;i++)
         {
-            if(bestLabels.at<int>(i,0)==label)
+            if(bestLabels.at<int>(i,0)==label) // jika label i maka
             {
-                sat[label] = sat[label] + imgK[1].data[i]/255.0;
+                sat[label] = sat[label] + imgK[1].data[i]/255.0; // hitung total nilai S-channel
+                div[label] +=1; // hitung area dari label
             }
         }
-        sat[label] = sat[label]/img.rows*img.cols;
+        sat[label] = sat[label]/div[label]; // hitung rata-rata nilai S
     }
-    for(int i=0;i<K;i++)
-        cout << "sat[" << i <<"]:"<<sat[i] << endl;
 
-    float satFull[K] = {0,0,0,0}; // variable untuk mencari nilai S tertinggi
+    // mencari label dengan nilai S tertinggi
+    float maxSat = sat[0]; // variabel untuk menyimpan nilai saturasi tertinggi
+    int indexSat = 0; // variabel untuk menyimpan label yang memiliki nilai saturasi tertinggi
+    for(int i=1;i<K;i++)
+    {
+        if(maxSat<sat[i]) // jika lebih besar maka itulah nilai yang lebih tinggi
+        {
+            maxSat = sat[i];
+            indexSat = i;
+        }
+    }
+
+    // mencari label dengan nilai S tertinggi untuk HSVFull
+    float satFull[K] = {0,0,0,0};
+    int divFull[K] = {0,0,0,0};
     for (int label=0;label<K;label++)
     {
         for(int i=0;i<img.rows*img.cols;i++)
@@ -147,13 +163,21 @@ int main(int argc, char *argv[])
             if(bestLabels2.at<int>(i,0)==label)
             {
                 satFull[label] = satFull[label] + imgK[1].data[i]/255.0;
+                divFull[label] +=1;
             }
         }
-        satFull[label] = satFull[label]/img.rows*img.cols;
+        satFull[label] = satFull[label]/divFull[label];
     }
-    for(int i=0;i<K;i++)
-        cout << "satFull[" << i <<"]:"<<satFull[i] << endl;
-
+    float maxSatFull = satFull[0];
+    int indexSatFull = 0;
+    for(int i=1;i<K;i++)
+    {
+        if(maxSatFull<satFull[i])
+        {
+            maxSatFull = satFull[i];
+            indexSatFull = i;
+        }
+    }
     /*
     for(int y=0;y<img.rows;y++){
         for(int x=0;x<img.cols;x++){
@@ -171,11 +195,17 @@ int main(int argc, char *argv[])
     */
 
     //buat ngasih warna
-    int colors[K]; //0 adalah hitam, 255 adalah putih
-    colors[0] = 255;
-    colors[1] = 0;
-    colors[2] = 0;
-    colors[3] = 0;
+    int colors[K], colorsFull[K]; //0 adalah hitam, 255 adalah putih
+    for(int i=0;i<K;i++)
+    {
+        if(i==indexSat) colors[i]=255; // jika label terbaik diberi warna putih
+        else colors[i]=0;
+    }
+    for(int i=0;i<K;i++)
+    {
+        if(i==indexSatFull) colorsFull[i]=255; //jika label terbaik diberi warna putih
+        else colorsFull[i]=0;
+    }
 
     // Ngereshape plus ngasih warna dengan best labels
     clustered = Mat(img.rows, img.cols, CV_32F);
@@ -185,7 +215,7 @@ int main(int argc, char *argv[])
 
     clustered2 = Mat(img.rows, img.cols, CV_32F);
     for(int i=0; i<img.cols*img.rows; i++) {
-        clustered2.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels2.at<int>(0,i)]);
+        clustered2.at<float>(i/img.cols, i%img.cols) = (float)(colorsFull[bestLabels2.at<int>(0,i)]);
     }
 
     // Mengembalikan warna dari img original yang memiliki 3 channel, convert image ke 3-ch img
@@ -220,10 +250,12 @@ int main(int argc, char *argv[])
     }
 
     // show the result of img with binary color
+    /*
     namedWindow("clustered",WINDOW_NORMAL);
     imshow("clustered", clustered);
     namedWindow("clusteredFull",WINDOW_NORMAL);
     imshow("clusteredFull", clustered2);
+    */
 
     // Show the result of img when assigned with original color
     namedWindow("clustered",WINDOW_NORMAL);
