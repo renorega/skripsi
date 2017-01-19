@@ -128,6 +128,38 @@ int main(int argc, char *argv[])
 
     //buat ngasih warna
     int colors[K]; //0 adalah hitam, 255 adalah putih
+
+    // Untuk mencari gambar dengan rata-rata S tertinggi
+    /*
+    for(int i=0;i<K;i++)
+    {
+        colors[i] = 0;
+        int x=0;
+        while(x!=i && x<K)
+        {
+            colors[x]=255;
+            x++;
+        }
+
+        clustered = Mat(img.rows, img.cols, CV_32F);
+        for(int i=0; i<img.cols*img.rows; i++) {
+            clustered.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
+        }
+        for(int y=0;y<img.rows;y++){
+            for(int x=0;x<img.cols;x++){
+                if(clustered.at<float>(y,x)==0)
+                {
+                    imgKFinal.at<Vec3b>(y,x)= imgK.at<Vec3b>(y,x);
+                }
+
+               else
+                {
+                    imgKFinal.at<Vec3b>(y,x) = {255,255,255};
+                }
+            }
+        }
+    }
+    */
     colors[0] = 255;
     colors[1] = 0;
     colors[2] = 255;
@@ -151,7 +183,7 @@ int main(int argc, char *argv[])
         for(int x=0;x<img.cols;x++){
             if(clustered.at<float>(y,x)==0)
             {
-                imgKFinal.at<Vec3b>(y,x)= img.at<Vec3b>(y,x);
+                imgKFinal.at<Vec3b>(y,x)= imgK[1].at<Vec3b>(y,x);
             }
 
            else
@@ -165,7 +197,7 @@ int main(int argc, char *argv[])
         for(int x=0;x<img.cols;x++){
             if(clustered2.at<float>(y,x)==0)
             {
-                imgKFinalFull.at<Vec3b>(y,x)= img.at<Vec3b>(y,x);
+                imgKFinalFull.at<Vec3b>(y,x)= imgKFull[1].at<Vec3b>(y,x);
             }
 
            else
