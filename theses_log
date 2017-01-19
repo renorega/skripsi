@@ -7,6 +7,8 @@ Catatan Progress Pekerjaan Skripsi
 Reno Ghaffur Bagasjvara
 Automated Detection and Classification of White Blood Cells and Acute L
 
+---------------------------------------------------------------------------------------------------------
+
 18 Januari 2017
 
 Hal yang sudah dilakukan
@@ -35,3 +37,14 @@ intensities.
 To Done List Tomorrow
 1. Applying KMeans with two ways with different branches
 2. Understanding K-Means library while making preparations of Moving K-Means
+
+---------------------------------------------------------------------------------------------------------
+
+19 Januari 2017
+
+Hal yang sudah dilakukan :
+1. Exploring jurnal kmeans
+2. Menggunakan branch untuk membandingkan hasil kmeans dengan kmeans yang berbeda
+3. Mengaplikasikan kmeans di ranah warna HSV di komponen S 
+4. Akhirnya menggunakan kmeans12 atau cara 1 (bukan reshape) tanpa menggunakan informasi img.rows dan img.cols
+5. Merge branch master dengan branch kmeans12
