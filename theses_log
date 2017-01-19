@@ -50,5 +50,19 @@ Hal yang sudah dilakukan :
 5. Merge branch master dengan branch kmeans12
 6. Membuat branch baru untuk mencoba mendapatkan label dengan nilai rata-rata S tertinggi
 
-To Done List Tomorro
+To Done List Tomorrow
 Membuat program untuk mendapatkan label dengan nilai rata-rata S tertinggi
+
+---------------------------------------------------------------------------------------------------------
+
+20 Januari 2017
+
+Hal yang sudah dilakukan :
+1. Membuat program untuk mendapatkan label nukleus melalui nilai rata-rata S tertinggi
+2. Merge branch master dengan highSaturation
+
+To Done List Next
+Memahami library KMeans
+Mulai membuat library Moving-Kmeans :
+a. Melalui library KMeans atau
+b. Buat baru 
