@@ -91,21 +91,17 @@ int main(int argc, char *argv[])
     namedWindow("SFull",WINDOW_NORMAL);
     imshow("SFull", imgKFull[1]);
 
-    //buat matrix P kosong dengan ukuran row = column x row, col=3 dan tipe CV_32F
-    Mat p = Mat::zeros(img.cols*img.rows, 3, CV_32F);
-    Mat p2 = Mat::zeros(img.cols*img.rows, 3, CV_32F);
+    //buat matrix P kosong dengan ukuran row = column x row, col=1 dan tipe CV_32F
+    Mat p = Mat::zeros(img.cols*img.rows, 1, CV_32F);
+    Mat p2 = Mat::zeros(img.cols*img.rows, 1, CV_32F);
     Mat bestLabels,bestLabels2,centers,centers2, clustered,clustered2;
 
     for(int i=0; i<img.cols*img.rows; i++) {
-        p.at<float>(i,0) = (i/img.cols) / img.rows; // what is this for ?
-        p.at<float>(i,1) = (i%img.cols) / img.cols; // what is this for ?
-        p.at<float>(i,2) = imgK[1].data[i] / 255.0; // how to use only one channel (S)
+        p.at<float>(i,0) = imgK[1].data[i] / 255.0; // how to use only one channel (S)
     }
 
     for(int i=0; i<img.cols*img.rows; i++) {
-        p2.at<float>(i,0) = (i/img.cols) / img.rows; // what is this for ?
-        p2.at<float>(i,1) = (i%img.cols) / img.cols; // what is this for ?
-        p2.at<float>(i,2) = imgKFull[1].data[i] / 255.0; // how to use only one channel (S)
+        p2.at<float>(i,0) = imgKFull[1].data[i] / 255.0; // how to use only one channel (S)
     }
 
     int K = 4;
