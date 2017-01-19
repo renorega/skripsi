@@ -7,8 +7,8 @@ int main(int argc, char *argv[])
 {
     //loading image
     Mat img,imgHSV,imgHSVFull;
-    // use IMREAD_COLOR to access image in BGR format as 8 bit image
 
+    // use IMREAD_COLOR to access image in BGR format as 8 bit image
     img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/5-7.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
         p2.at<float>(i,0) = imgKFull[1].data[i] / 255.0; // how to use only one channel (S)
     }
 
+    // perform Kmeans clustering
     int K = 4;
     kmeans(p, K, bestLabels,
             TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0),
@@ -142,15 +143,15 @@ int main(int argc, char *argv[])
         sat[label] = sat[label]/div[label]; // hitung rata-rata nilai S
     }
 
-    // mencari label dengan nilai S tertinggi
+    // mencari label nukleus melalui nilai S tertinggi
     float maxSat = sat[0]; // variabel untuk menyimpan nilai saturasi tertinggi
-    int indexSat = 0; // variabel untuk menyimpan label yang memiliki nilai saturasi tertinggi
+    int indexSat = 0; // variabel untuk menyimpan label nukleus yaitu label yang memiliki nilai saturasi tertinggi
     for(int i=1;i<K;i++)
     {
         if(maxSat<sat[i]) // jika lebih besar maka itulah nilai yang lebih tinggi
         {
             maxSat = sat[i];
-            indexSat = i;
+            indexSat = i; // menyimpan label nukleus
         }
     }
 
@@ -179,32 +180,17 @@ int main(int argc, char *argv[])
             indexSatFull = i;
         }
     }
-    /*
-    for(int y=0;y<img.rows;y++){
-        for(int x=0;x<img.cols;x++){
-            if(clustered.at<float>(y,x)==0)
-            {
-                imgKFinal.at<Vec3b>(y,x)= imgK.at<Vec3b>(y,x);
-            }
 
-            else
-            {
-                imgKFinal.at<Vec3b>(y,x) = {255,255,255};
-            }
-        }
-    }
-    */
-
-    //buat ngasih warna
+    //buat ngasih warna 255 atau putih ke label nukleus
     int colors[K], colorsFull[K]; //0 adalah hitam, 255 adalah putih
     for(int i=0;i<K;i++)
     {
-        if(i==indexSat) colors[i]=255; // jika label terbaik diberi warna putih
+        if(i==indexSat) colors[i]=255; // jika label nukleus diberi warna putih
         else colors[i]=0;
     }
     for(int i=0;i<K;i++)
     {
-        if(i==indexSatFull) colorsFull[i]=255; //jika label terbaik diberi warna putih
+        if(i==indexSatFull) colorsFull[i]=255; //jika label nukleus diberi warna putih
         else colorsFull[i]=0;
     }
 
@@ -224,14 +210,14 @@ int main(int argc, char *argv[])
     Mat imgKFinalFull(img.rows,img.cols,CV_8UC3);
     for(int y=0;y<img.rows;y++){
         for(int x=0;x<img.cols;x++){
-            if(clustered.at<float>(y,x)==255)
+            if(clustered.at<float>(y,x)==255) // jika label nukleus
             {
-                imgKFinal.at<Vec3b>(y,x)= img.at<Vec3b>(y,x);
+                imgKFinal.at<Vec3b>(y,x)= img.at<Vec3b>(y,x); //diberi warna sesuai original
             }
 
            else
             {
-                imgKFinal.at<Vec3b>(y,x) = {255,255,255};
+                imgKFinal.at<Vec3b>(y,x) = {255,255,255}; //jika tidak diberi warna putih
             }
         }
     }
