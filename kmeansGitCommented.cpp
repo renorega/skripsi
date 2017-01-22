@@ -224,62 +224,74 @@ double cv::kmeans( InputArray _data, int K,
 
     const int SPP_TRIALS = 3;
 
-    // return matrix header
-    Mat data0 = _data.getMat(); 
-
-    // check whether the row of data0 is 1
-    bool isrow = data0.rows == 1; 
-
-    // if isrow==TRUE, then N=data0.cols, if isrow==FALSE, then N=data0.rows
-    int N = isrow ? data0.cols : data0.rows;
-
+    Mat data0 = _data.getMat();  // return matrix header
+    bool isrow = data0.rows == 1; // check whether the row of data0 is 1
+    int N = isrow ? data0.cols : data0.rows; // if isrow==TRUE, then N=data0.cols, if isrow==FALSE, then N=data0.rows
     //.channels will return the number of matrix channels. Calculate the dims. If isrow==TRUE, then dims=1*data0.channels. 
     // if isrow==FALSE, then dims = data0.cols*data0.channels
-    int dims = (isrow ? 1 : data0.cols)*data0.channels(); 
-
-    // return the depth. . Such as 16S (16bit signed) or 8U (8unsigned)
-    int type = data0.depth();
-
-    // just compare it with 1 to check if attempts<1, then attempts = 1
-    attempts = std::max(attempts, 1);
-
+    int dims = (isrow ? 1 : data0.cols)*data0.channels(); // jika baris input==1, maka dims = 1*input.channel, jika tidak cols*input.channel
+    int type = data0.depth(); // return the depth. . Such as 16S (16bit signed) or 8U (8unsigned)
+    attempts = std::max(attempts, 1); // just compare it with 1 to check if attempts<1, then attempts = 1
+    
     // if the conditions are not satisfied, terminate program
     CV_Assert( data0.dims <= 2 && type == CV_32F && K > 0 );
     CV_Assert( N >= K );
 
+    // create data (mat-type) with Nxdims, type CV_32F, use ptr of data0, and step like condition above
+    // step : number of bytes each matrix row occupies
     Mat data(N, dims, CV_32F, data0.ptr(), isrow ? dims * sizeof(float) : static_cast<size_t>(data0.step));
 
+    // create bestLabels to pass Mat to function with Nx1 , type CV_32S, -1 and allow transposed
     _bestLabels.create(N, 1, CV_32S, -1, true);
 
-    Mat _labels, best_labels = _bestLabels.getMat();
+    Mat _labels, best_labels = _bestLabels.getMat(); // create labels, then best_labels = getMat from _bestLabels
+
+    // CONDITION
+    // flags & CV_KMEANS_USE... = 1
     if( flags & CV_KMEANS_USE_INITIAL_LABELS )
     {
+        // this must be satisfied!
         CV_Assert( (best_labels.cols == 1 || best_labels.rows == 1) &&
                   best_labels.cols*best_labels.rows == N &&
                   best_labels.type() == CV_32S &&
                   best_labels.isContinuous());
-        best_labels.copyTo(_labels);
+        best_labels.copyTo(_labels); // best_labels data matrix are copied to labels
     }
-    else
+    else // kondisi lain
     {
+        // jika tidak sesuai syarat colom atau label = 1
         if( !((best_labels.cols == 1 || best_labels.rows == 1) &&
              best_labels.cols*best_labels.rows == N &&
             best_labels.type() == CV_32S &&
             best_labels.isContinuous()))
-            best_labels.create(N, 1, CV_32S);
-        _labels.create(best_labels.size(), best_labels.type());
+            best_labels.create(N, 1, CV_32S); // buat best_labels dengan row N, column 1, type CV_32S
+
+        _labels.create(best_labels.size(), best_labels.type()); // create _labels with size and type = best_labels's size and type
     }
-    int* labels = _labels.ptr<int>();
 
+    int* labels = _labels.ptr<int>(); // I DONT KNOW WHAT THE FUCK IS THIS
+
+    // membuat centers, old centers dan temporary
+    // Centers dan old centers memiliki K-baris, temp cm punya 1 
     Mat centers(K, dims, type), old_centers(K, dims, type), temp(1, dims, type);
-    std::vector<int> counters(K);
-    std::vector<Vec2f> _box(dims);
-    Vec2f* box = &_box[0];
-    double best_compactness = DBL_MAX, compactness = 0;
-    RNG& rng = theRNG();
-    int a, iter, i, j, k;
 
-    if( criteria.type & TermCriteria::EPS )
+    std::vector<int> counters(K); // buat vector counters bertipe int dengan kapasitas-K
+
+    // buat vector _box bertipe Vec2f dengan kapasitas dims
+    // vector 2f: vector dengan tipe float dan alloc 2 dengan kapasitas dims
+    std::vector<Vec2f> _box(dims); 
+
+    Vec2f* box = &_box[0]; // buat pointer thdp elemen pertama vector _box
+
+    // buat variable best_compactness = maximal double, dan compactness = 0
+    double best_compactness = DBL_MAX, compactness = 0; 
+
+    RNG& rng = theRNG(); // dapatkan nilai random dari RNG
+    int a, iter, i, j, k; // deklarasikan a,iter,i,j,k
+
+    // PENENTUAN KRITERIA
+    // Apa itu criteria, apa itu epsilon, apa itu EPS?
+    if( criteria.type & TermCriteria::EPS ) 
         criteria.epsilon = std::max(criteria.epsilon, 0.);
     else
         criteria.epsilon = FLT_EPSILON;
@@ -290,12 +302,14 @@ double cv::kmeans( InputArray _data, int K,
     else
         criteria.maxCount = 100;
 
+    // jika K = 1
     if( K == 1 )
     {
         attempts = 1;
         criteria.maxCount = 2;
     }
 
+    // buat pointer float ke data
     const float* sample = data.ptr<float>(0);
     for( j = 0; j < dims; j++ )
         box[j] = Vec2f(sample[j], sample[j]);
@@ -311,6 +325,7 @@ double cv::kmeans( InputArray _data, int K,
         }
     }
 
+    // KOMEN SAMPAI SINI!
     for( a = 0; a < attempts; a++ )
     {
         double max_center_shift = DBL_MAX;
@@ -401,7 +416,7 @@ double cv::kmeans( InputArray _data, int K,
                         if( labels[i] != max_k )
                             continue;
                         sample = data.ptr<float>(i);
-                        double dist = normL2Sqr(sample, _old_center, dims);
+                        double dist = normL2Sqr(sample, _old_center, dims); // compute euclidean distance
 
                         if( max_dist <= dist )
                         {
