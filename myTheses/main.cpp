@@ -9,11 +9,13 @@ int main(int argc, char *argv[])
     Mat img,imgHSV,imgHSVFull;
 
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/5-7.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/29-39.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
     // convert image into HSV
+    // HSV_FULL gives Hue value between 0-255, while HSV gives Hue value between 0-180 (H/2)
+    // (A 8-bits img (0-255) can't contain hue value 0-360)
     cvtColor(img,imgHSV,CV_BGR2HSV);
     cvtColor(img,imgHSVFull,CV_BGR2HSV_FULL);
 
@@ -52,7 +54,7 @@ int main(int argc, char *argv[])
     imshow("Equalized V-Channel HSVFull",vectHSVFull[2]);
     */
 
-    // merge equalized V-Channel to Image
+    // merge equalized V-channel to Image
     Mat imgEqualized, imgEqualizedFull;
     merge(vectHSV,imgEqualized);
     merge(vectHSVFull,imgEqualizedFull);
@@ -93,6 +95,7 @@ int main(int argc, char *argv[])
     //buat vector bgr tipe Mat
     vector<Mat> imgK,imgKFull;
 
+    // split every channel of image filtered with median
     split(imgMedian, imgK);
     split(imgMedianFull, imgKFull);
 
@@ -111,11 +114,11 @@ int main(int argc, char *argv[])
     Mat bestLabels,bestLabels2,centers,centers2, clustered,clustered2;
 
     for(int i=0; i<img.cols*img.rows; i++) {
-        p.at<float>(i,0) = imgK[1].data[i] / 255.0; // how to use only one channel (S)
+        p.at<float>(i,0) = imgK[1].data[i] / 255.0; // Use only one channel(S) with normalization to ease computation
     }
 
     for(int i=0; i<img.cols*img.rows; i++) {
-        p2.at<float>(i,0) = imgKFull[1].data[i] / 255.0; // how to use only one channel (S)
+        p2.at<float>(i,0) = imgKFull[1].data[i] / 255.0; // Use only one channel(S) with normalization to ease computation
     }
 
     // perform Kmeans clustering
