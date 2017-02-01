@@ -220,16 +220,16 @@ double cv::kmeans( InputArray _data, int K,
                    TermCriteria criteria, int attempts,
                    int flags, OutputArray _centers )
 {
-    CV_INSTRUMENT_REGION() // what the fuck is this?!
+    CV_INSTRUMENT_REGION() // apa ini :(
 
     const int SPP_TRIALS = 3;
 
     Mat data0 = _data.getMat();  // return matrix header
     bool isrow = data0.rows == 1; // check whether the row of data0 is 1
-    int N = isrow ? data0.cols : data0.rows; // if isrow==TRUE, then N=data0.cols, if isrow==FALSE, then N=data0.rows
+    int N = isrow ? data0.cols : data0.rows; // N adalah jumlah data (entah kolom atau row)
     //.channels will return the number of matrix channels. Calculate the dims. If isrow==TRUE, then dims=1*data0.channels. 
     // if isrow==FALSE, then dims = data0.cols*data0.channels
-    int dims = (isrow ? 1 : data0.cols)*data0.channels(); // jika baris input==1, maka dims = 1*input.channel, jika tidak cols*input.channel
+    int dims = (isrow ? 1 : data0.cols)*data0.channels(); // dims = data0.channels*1 , nyimpen channel
     int type = data0.depth(); // return the depth. . Such as 16S (16bit signed) or 8U (8unsigned)
     attempts = std::max(attempts, 1); // just compare it with 1 to check if attempts<1, then attempts = 1
     
@@ -326,44 +326,46 @@ double cv::kmeans( InputArray _data, int K,
     }
 
     // KOMEN SAMPAI SINI!
-    for( a = 0; a < attempts; a++ )
+    for( a = 0; a < attempts; a++ ) // untuk setiap attempt
     {
-        double max_center_shift = DBL_MAX;
-        for( iter = 0;; )
+        double max_center_shift = DBL_MAX; // memiliki nilai maksimal dari double
+        for( iter = 0;; ) // iter = 0
         {
-            swap(centers, old_centers);
+            swap(centers, old_centers); // tukar centers dengan old centers
 
-            if( iter == 0 && (a > 0 || !(flags & KMEANS_USE_INITIAL_LABELS)) )
+			// di tiap attempt setelah attempt pertama dan jika use initial labels
+            if( iter == 0 && (a > 0 || !(flags & KMEANS_USE_INITIAL_LABELS)) ) 
             {
-                if( flags & KMEANS_PP_CENTERS )
-                    generateCentersPP(data, centers, K, rng, SPP_TRIALS);
+                if( flags & KMEANS_PP_CENTERS ) // menggunakan KMEANS PLUS PLUS
+                    generateCentersPP(data, centers, K, rng, SPP_TRIALS); // hasilkan center dengan kmeans++
                 else
                 {
                     for( k = 0; k < K; k++ )
-                        generateRandomCenter(_box, centers.ptr<float>(k), rng);
+                        generateRandomCenter(_box, centers.ptr<float>(k), rng); // menggunakan nilai random biasa
                 }
             }
-            else
+            else // untuk attempt pertama 
             {
-                if( iter == 0 && a == 0 && (flags & KMEANS_USE_INITIAL_LABELS) )
+            	// untuk iter pertama dan attempt pertama dan jika use initial labels
+                if( iter == 0 && a == 0 && (flags & KMEANS_USE_INITIAL_LABELS) ) 
                 {
-                    for( i = 0; i < N; i++ )
-                        CV_Assert( (unsigned)labels[i] < (unsigned)K );
+                    for( i = 0; i < N; i++ ) // N adalah jumlah data, untuk tiap data
+                        CV_Assert( (unsigned)labels[i] < (unsigned)K ); // pastikan label dibawah K
                 }
 
                 // compute centers
-                centers = Scalar(0);
+                centers = Scalar(0); // kosongkan nilai
                 for( k = 0; k < K; k++ )
-                    counters[k] = 0;
+                    counters[k] = 0; // kosongkan nilai vector counters yang kapasitasnya K
 
-                for( i = 0; i < N; i++ )
+                for( i = 0; i < N; i++ ) // untuk tiap data
                 {
-                    sample = data.ptr<float>(i);
-                    k = labels[i];
-                    float* center = centers.ptr<float>(k);
-                    j=0;
-                    #if CV_ENABLE_UNROLLED
-                    for(; j <= dims - 4; j += 4 )
+                    sample = data.ptr<float>(i); // sample yang berupa konstanta pointer menyimpan pointer dengan nilai float
+                    k = labels[i]; // k menyimpan labels di data i
+                    float* center = centers.ptr<float>(k); // pointer cetner menyimpan nilai centers di k
+                    j=0; // set j = 0
+                    #if CV_ENABLE_UNROLLED // apa ini ?
+                    for(; j <= dims - 4; j += 4 ) // 
                     {
                         float t0 = center[j] + sample[j];
                         float t1 = center[j+1] + sample[j+1];
@@ -378,25 +380,25 @@ double cv::kmeans( InputArray _data, int K,
                         center[j+3] = t1;
                     }
                     #endif
-                    for( ; j < dims; j++ )
-                        center[j] += sample[j];
-                    counters[k]++;
+                    for( ; j < dims; j++ ) // selama j kurang dari channel
+                        center[j] += sample[j]; // hitung jumlah  dari tiap channel
+                    counters[k]++; // counters menghitung jumlah dari tiap label 
                 }
 
-                if( iter > 0 )
-                    max_center_shift = 0;
+                if( iter > 0 ) // jika iter diatas 0 kosongkan max_center_shift
+                    max_center_shift = 0; 
 
-                for( k = 0; k < K; k++ )
+                for( k = 0; k < K; k++ ) // untuk setiap label k
                 {
-                    if( counters[k] != 0 )
+                    if( counters[k] != 0 ) // jika jumlah kelas tidak bernilai 0 lanjutkan
                         continue;
 
                     // if some cluster appeared to be empty then:
                     //   1. find the biggest cluster
                     //   2. find the farthest from the center point in the biggest cluster
                     //   3. exclude the farthest point from the biggest cluster and form a new 1-point cluster.
-                    int max_k = 0;
-                    for( int k1 = 1; k1 < K; k1++ )
+                    int max_k = 0; // variable penyimpan nilai maksimal
+                    for( int k1 = 1; k1 < K; k1++ ) // untuk tiap cluster cari kluster terbesar ! (1)
                     {
                         if( counters[max_k] < counters[k1] )
                             max_k = k1;
