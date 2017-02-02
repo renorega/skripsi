@@ -56,9 +56,8 @@ int main(int argc, char *argv[])
 
     // Perform median filtering
     // Trying median filter 7x7
-    Mat imgMedian,imgMedianFull;
+    Mat imgMedian;
     medianBlur(imgEqualized,imgMedian,7);
-
     /*
     // show result of median filtering 7x7
     namedWindow("Image Median",WINDOW_NORMAL);
