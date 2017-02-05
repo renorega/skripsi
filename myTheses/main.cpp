@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
     int colors[K]; //0 adalah hitam, 255 adalah putih
     for(int i=0;i<K;i++)
     {
-        if(i==indexSat) colors[i]=255; // jika label nukleus diberi warna putih
+        if(i==indexSat) colors[i]=1; // jika label nukleus diberi warna putih
         else colors[i]=0;
     }
 
@@ -139,11 +139,58 @@ int main(int argc, char *argv[])
         clustered.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
     }
 
+
+    // show the result of img with binary color
+    namedWindow("clustered",WINDOW_NORMAL);
+    imshow("clustered", clustered);
+
+    // Perform Morphological Opening
+    // varible destination
+    Mat imgMorphOpen,imgMorphClose, imgMorphFinal;
+    // kernel size
+    int kernelSize = 7;
+    // creating structured element for morphological operation
+    Mat element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
+    // perform morphological opening
+    morphologyEx( clustered, imgMorphOpen, MORPH_OPEN, element );
+    namedWindow("ImgMorphOpen",CV_WINDOW_NORMAL);
+    imshow( "ImgMorphOpen", imgMorphOpen);
+
+    // Perform Morphological Closing
+    kernelSize = 7;
+    element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
+    morphologyEx( clustered, imgMorphClose, MORPH_CLOSE, element );
+    namedWindow("ImgMorphClose",CV_WINDOW_NORMAL);
+    imshow( "ImgMorphClose", imgMorphClose);
+
+    // Perform Morphological Opening + Closing
+    morphologyEx( imgMorphOpen, imgMorphFinal, MORPH_CLOSE, element );
+    namedWindow("ImgMorphFinal",CV_WINDOW_NORMAL);
+    imshow( "ImgMorphFinal", imgMorphFinal);
+
+    /*
+    int const max_operator = 4;
+    int const max_elem = 2;
+    int const max_kernel_size = 21;
+    createTrackbar("Operator:\n 0: Opening - 1: Closing \n 2: Gradient - 3: Top Hat \n 4: Black Hat", window_name, &morph_operator, max_operator, Morphology_Operations );
+
+    /// Create Trackbar to select kernel type
+    createTrackbar( "Element:\n 0: Rect - 1: Cross - 2: Ellipse", window_name,
+                    &morph_elem, max_elem,
+                    Morphology_Operations );
+
+    /// Create Trackbar to choose kernel size
+    createTrackbar( "Kernel size:\n 2n +1", window_name,
+                    &morph_size, max_kernel_size,
+                    Morphology_Operations );
+    */
+
+    /*
     // Mengembalikan warna dari img original yang memiliki 3 channel, convert image ke 3-ch img
     Mat imgKFinal(img.rows,img.cols,CV_8UC3);
     for(int y=0;y<img.rows;y++){
         for(int x=0;x<img.cols;x++){
-            if(clustered.at<float>(y,x)==255) // jika label nukleus
+            if(clustered.at<float>(y,x)==1) // jika label nukleus
             {
                 imgKFinal.at<Vec3b>(y,x)= img.at<Vec3b>(y,x); //diberi warna sesuai original
             }
@@ -155,15 +202,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    /*
-    // show the result of img with binary color
-    namedWindow("clustered",WINDOW_NORMAL);
-    imshow("clustered", clustered);
-    */
-
     // Show the result of img when assigned with original color
     namedWindow("Kmeans",WINDOW_NORMAL);
     imshow("Kmeans", imgKFinal);
+    */
     waitKey();
     destroyAllWindows();
     return 0;
