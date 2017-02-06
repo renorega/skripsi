@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
     }
 
     // Ngereshape plus ngasih warna dengan best labels
-    clustered = Mat(img.rows, img.cols, CV_32F);
+    clustered = Mat(img.rows, img.cols, CV_32FC1);
     for(int i=0; i<img.cols*img.rows; i++) {
         clustered.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
     }
@@ -157,7 +157,6 @@ int main(int argc, char *argv[])
     imshow( "ImgMorphOpen", imgMorphOpen);
 
     // Perform Morphological Closing
-    kernelSize = 7;
     element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
     morphologyEx( clustered, imgMorphClose, MORPH_CLOSE, element );
     namedWindow("ImgMorphClose",CV_WINDOW_NORMAL);
@@ -168,22 +167,89 @@ int main(int argc, char *argv[])
     namedWindow("ImgMorphFinal",CV_WINDOW_NORMAL);
     imshow( "ImgMorphFinal", imgMorphFinal);
 
-    /*
-    int const max_operator = 4;
-    int const max_elem = 2;
-    int const max_kernel_size = 21;
-    createTrackbar("Operator:\n 0: Opening - 1: Closing \n 2: Gradient - 3: Top Hat \n 4: Black Hat", window_name, &morph_operator, max_operator, Morphology_Operations );
+    // Create imgDistInput because distanceTransform() need a CV_8U for input img
+    Mat imgDistInput;
+    imgMorphFinal.convertTo(imgDistInput,CV_8UC3);
 
-    /// Create Trackbar to select kernel type
-    createTrackbar( "Element:\n 0: Rect - 1: Cross - 2: Ellipse", window_name,
-                    &morph_elem, max_elem,
-                    Morphology_Operations );
+    // To show the result of convertion, I don't know why it's black only . .
+    namedWindow("ImgDistInput",CV_WINDOW_NORMAL);
+    imshow( "ImgDistInput", imgDistInput);
 
-    /// Create Trackbar to choose kernel size
-    createTrackbar( "Kernel size:\n 2n +1", window_name,
-                    &morph_size, max_kernel_size,
-                    Morphology_Operations );
-    */
+     Mat dist;
+     distanceTransform(imgDistInput, dist, CV_DIST_L2, 5);
+     // Normalize the distance image for range = {0.0, 1.0}
+     // so we can visualize and threshold it
+     normalize(dist, dist, 0, 1., NORM_MINMAX);
+     namedWindow("ImgDist",CV_WINDOW_NORMAL);
+     imshow("ImgDist", dist);
+
+     // We threshold the dist image and then perform some morphology operation
+     // (i.e. dilation) in order to extract the peaks from the above image:
+     // Threshold to obtain the peaks
+     // This will be the markers for the foreground objects
+     threshold(dist, dist, 0, 1, CV_THRESH_BINARY);
+     // Dilate a bit the dist image
+     Mat kernel1 = Mat::ones(3, 3, CV_8UC1);
+     dilate(dist, dist, kernel1);
+     namedWindow("Peaks",CV_WINDOW_NORMAL);
+     imshow("Peaks", dist);
+
+     // SAMPAI SINI, BINGUNG MARKERS BUAT APA DAN KENAPA dist ("Peaks") DAN imgMorphFinal SAMA
+     // BINGUNG KENAPA imgDistInput HASILNYA HITAM SEMUA TAPI BISA DAPETIN DISTANT TRANSFORM :((
+
+
+     // Create markers for WT algorithm
+     // Create the CV_8U version of the distance image
+     // It is needed for findContours()
+     Mat dist_8u;
+     dist.convertTo(dist_8u, CV_8U);
+     // Find total markers
+     vector<vector<Point> > contours;
+     findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+     // Create the marker image for the watershed algorithm
+     Mat markers = Mat::zeros(dist.size(), CV_32SC1);
+     // Draw the foreground markers
+     for (size_t i = 0; i < contours.size(); i++)
+         drawContours(markers, contours, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
+     // Draw the background marker
+     circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
+     namedWindow("Markers",CV_WINDOW_NORMAL);
+     imshow("Markers", markers*10000);
+
+     // Perform watershed transform
+     // Perform the watershed algorithm
+//     watershed(imgDistInput, markers);
+     Mat mark = Mat::zeros(markers.size(), CV_8UC1);
+     markers.convertTo(mark, CV_8UC1);
+     bitwise_not(mark, mark);
+ //    imshow("Markers_v2", mark); // uncomment this if you want to see how the mark
+                                   // image looks like at that point
+     // Generate random colors
+     vector<Vec3b> colors2;
+     for (size_t i = 0; i < contours.size(); i++)
+     {
+         int b = theRNG().uniform(0, 255);
+         int g = theRNG().uniform(0, 255);
+         int r = theRNG().uniform(0, 255);
+         colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
+     }
+     // Create the result image
+     Mat dst = Mat::zeros(markers.size(), CV_8UC3);
+     // Fill labeled objects with random colors
+     for (int i = 0; i < markers.rows; i++)
+     {
+         for (int j = 0; j < markers.cols; j++)
+         {
+             int index = markers.at<int>(i,j);
+             if (index > 0 && index <= static_cast<int>(contours.size()))
+                 dst.at<Vec3b>(i,j) = colors[index-1];
+             else
+                 dst.at<Vec3b>(i,j) = Vec3b(0,0,0);
+         }
+     }
+     // Visualize the final image
+     namedWindow("Watershed",CV_WINDOW_NORMAL);
+     imshow("Watershed", dst);
 
     /*
     // Mengembalikan warna dari img original yang memiliki 3 channel, convert image ke 3-ch img
