@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     Mat img,imgHSV;
 
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/29-39.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/5-7.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     //Aplikasikan algoritma KMEANS
     //buat matrix P kosong dengan ukuran row = column x row, col=1 dan tipe CV_32F
     Mat p = Mat::zeros(img.cols*img.rows, 1, CV_32F);
-    Mat bestLabels,centers,clustered;
+    Mat bestLabels,centers,imgKMeansGrayscale;
     for(int i=0; i<img.cols*img.rows; i++) {
         p.at<float>(i,0) = imgK[1].data[i] / 255.0; // Use only one channel(S) with normalization to ease computation
     }
@@ -129,34 +129,32 @@ int main(int argc, char *argv[])
     int colors[K]; //0 adalah hitam, 255 adalah putih
     for(int i=0;i<K;i++)
     {
-        if(i==indexSat) colors[i]=1; // jika label nukleus diberi warna putih
+        if(i==indexSat) colors[i]=255; // jika label nukleus diberi warna putih
         else colors[i]=0;
     }
 
     // Ngereshape plus ngasih warna dengan best labels
-    clustered = Mat(img.rows, img.cols, CV_32FC1);
+    imgKMeansGrayscale= Mat(img.rows, img.cols, CV_32F);
     for(int i=0; i<img.cols*img.rows; i++) {
-        clustered.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
+        imgKMeansGrayscale.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
     }
 
-
-    // show the result of img with binary color
-    namedWindow("clustered",WINDOW_NORMAL);
-    imshow("clustered", clustered);
+    // Show the result of KMeans with grayscale
+    namedWindow("Grayscale KMeans",WINDOW_NORMAL);
+    imshow("Grayscale KMeans", imgKMeansGrayscale);
 
     // Perform Morphological Opening
-    // varible destination
-    Mat imgMorphOpen,imgMorphClose, imgMorphFinal;
-    // kernel size
+    Mat imgMorphOpen;
     int kernelSize = 7;
-    // creating structured element for morphological operation
     Mat element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
-    // perform morphological opening
-    morphologyEx( clustered, imgMorphOpen, MORPH_OPEN, element );
+    morphologyEx(imgKMeansGrayscale, imgMorphOpen, MORPH_OPEN, element );
     namedWindow("ImgMorphOpen",CV_WINDOW_NORMAL);
     imshow( "ImgMorphOpen", imgMorphOpen);
 
     // Perform Morphological Closing
+    /*
+    kernelSize = 3;
+    Mat imgMorphClose, imgMorphFinal;
     element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
     morphologyEx( clustered, imgMorphClose, MORPH_CLOSE, element );
     namedWindow("ImgMorphClose",CV_WINDOW_NORMAL);
@@ -166,48 +164,62 @@ int main(int argc, char *argv[])
     morphologyEx( imgMorphOpen, imgMorphFinal, MORPH_CLOSE, element );
     namedWindow("ImgMorphFinal",CV_WINDOW_NORMAL);
     imshow( "ImgMorphFinal", imgMorphFinal);
+    cout <<"Type:" << imgMorphFinal.type();
+    */
 
+    // Mengembalikan warna dari img original yang memiliki 3 channel, convert image ke 3-ch img
+    Mat imgKMeansColor(img.rows,img.cols,CV_8UC3);
+    for(int y=0;y<img.rows;y++){
+        for(int x=0;x<img.cols;x++){
+            if(imgMorphOpen.at<float>(y,x)==255) // jika label nukleus
+            {
+                imgKMeansColor.at<Vec3b>(y,x)= img.at<Vec3b>(y,x); //diberi warna sesuai original
+            }
+
+           else
+            {
+                imgKMeansColor.at<Vec3b>(y,x) = {255,255,255}; //jika tidak diberi warna
+            }
+        }
+    }
+
+    // Show the result of img when assigned with original color
+    namedWindow("Kmeans Original Color",WINDOW_NORMAL);
+    imshow("Kmeans Original Color", imgKMeansColor);
+
+    // Perform Dist Transform
     // Create imgDistInput because distanceTransform() need a CV_8U for input img
     Mat imgDistInput;
-    imgMorphFinal.convertTo(imgDistInput,CV_8UC3);
+    imgMorphOpen.convertTo(imgDistInput,CV_8UC3);
+    Mat imgDistTransform;
+    distanceTransform(imgDistInput, imgDistTransform, CV_DIST_L2, 5);
+    // Normalize the distance image for range = {0.0, 1.0}
+    // so we can visualize and threshold it
+    normalize(imgDistTransform, imgDistTransform, 0, 1., NORM_MINMAX);
+    /*
+    namedWindow("Distant Transform",CV_WINDOW_NORMAL);
+    imshow("Distant Transform", imgDistTransform);
+    */
 
-    // To show the result of convertion, I don't know why it's black only . .
-    namedWindow("ImgDistInput",CV_WINDOW_NORMAL);
-    imshow( "ImgDistInput", imgDistInput);
-
-     Mat dist;
-     distanceTransform(imgDistInput, dist, CV_DIST_L2, 5);
-     // Normalize the distance image for range = {0.0, 1.0}
-     // so we can visualize and threshold it
-     normalize(dist, dist, 0, 1., NORM_MINMAX);
-     namedWindow("ImgDist",CV_WINDOW_NORMAL);
-     imshow("ImgDist", dist);
-
-     // We threshold the dist image and then perform some morphology operation
-     // (i.e. dilation) in order to extract the peaks from the above image:
-     // Threshold to obtain the peaks
-     // This will be the markers for the foreground objects
-     threshold(dist, dist, 0, 1, CV_THRESH_BINARY);
-     // Dilate a bit the dist image
-     Mat kernel1 = Mat::ones(3, 3, CV_8UC1);
-     dilate(dist, dist, kernel1);
-     namedWindow("Peaks",CV_WINDOW_NORMAL);
-     imshow("Peaks", dist);
-
-     // SAMPAI SINI, BINGUNG MARKERS BUAT APA DAN KENAPA dist ("Peaks") DAN imgMorphFinal SAMA
-     // BINGUNG KENAPA imgDistInput HASILNYA HITAM SEMUA TAPI BISA DAPETIN DISTANT TRANSFORM :((
-
+    // Extract peaks for markers for foreground objects with threshold and dilation
+    threshold(imgDistTransform, imgDistTransform, .4, 1., CV_THRESH_BINARY);
+    Mat kernel1 = Mat::ones(3, 3, CV_8UC1);
+    dilate(imgDistTransform, imgDistTransform, kernel1);
+    /*
+    namedWindow("Peaks",CV_WINDOW_NORMAL);
+    imshow("Peaks", imgDistTransform);
+    */
 
      // Create markers for WT algorithm
      // Create the CV_8U version of the distance image
      // It is needed for findContours()
      Mat dist_8u;
-     dist.convertTo(dist_8u, CV_8U);
+     imgDistTransform.convertTo(dist_8u, CV_8U);
      // Find total markers
      vector<vector<Point> > contours;
      findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
      // Create the marker image for the watershed algorithm
-     Mat markers = Mat::zeros(dist.size(), CV_32SC1);
+     Mat markers = Mat::zeros(imgDistTransform.size(), CV_32SC1);
      // Draw the foreground markers
      for (size_t i = 0; i < contours.size(); i++)
          drawContours(markers, contours, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
@@ -216,62 +228,73 @@ int main(int argc, char *argv[])
      namedWindow("Markers",CV_WINDOW_NORMAL);
      imshow("Markers", markers*10000);
 
-     // Perform watershed transform
-     // Perform the watershed algorithm
-//     watershed(imgDistInput, markers);
-     Mat mark = Mat::zeros(markers.size(), CV_8UC1);
-     markers.convertTo(mark, CV_8UC1);
-     bitwise_not(mark, mark);
- //    imshow("Markers_v2", mark); // uncomment this if you want to see how the mark
+    // Perform WT
+    watershed(imgKMeansColor, markers);
+    Mat mark = Mat::zeros(markers.size(), CV_8UC1);
+    markers.convertTo(mark, CV_8UC1);
+    bitwise_not(mark, mark);
+    //imshow("Markers_v2", mark); // uncomment this if you want to see how the mark
                                    // image looks like at that point
-     // Generate random colors
-     vector<Vec3b> colors2;
-     for (size_t i = 0; i < contours.size(); i++)
-     {
-         int b = theRNG().uniform(0, 255);
-         int g = theRNG().uniform(0, 255);
-         int r = theRNG().uniform(0, 255);
-         colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
-     }
-     // Create the result image
-     Mat dst = Mat::zeros(markers.size(), CV_8UC3);
-     // Fill labeled objects with random colors
-     for (int i = 0; i < markers.rows; i++)
-     {
-         for (int j = 0; j < markers.cols; j++)
-         {
-             int index = markers.at<int>(i,j);
-             if (index > 0 && index <= static_cast<int>(contours.size()))
-                 dst.at<Vec3b>(i,j) = colors[index-1];
-             else
-                 dst.at<Vec3b>(i,j) = Vec3b(0,0,0);
-         }
-     }
-     // Visualize the final image
-     namedWindow("Watershed",CV_WINDOW_NORMAL);
-     imshow("Watershed", dst);
-
-    /*
-    // Mengembalikan warna dari img original yang memiliki 3 channel, convert image ke 3-ch img
-    Mat imgKFinal(img.rows,img.cols,CV_8UC3);
-    for(int y=0;y<img.rows;y++){
-        for(int x=0;x<img.cols;x++){
-            if(clustered.at<float>(y,x)==1) // jika label nukleus
+    // Generate random colors
+    vector<Vec3b> colors2;
+    for (size_t i = 0; i < contours.size(); i++)
+    {
+        int b = theRNG().uniform(0, 255);
+        int g = theRNG().uniform(0, 255);
+        int r = theRNG().uniform(0, 255);
+        colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
+    }
+    // Create the result image
+    Mat dst = Mat::zeros(markers.size(), CV_8UC3);
+    // Fill labeled objects with random colors
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            int index = markers.at<int>(i,j);
+            if (index > 0 && index <= static_cast<int>(contours.size()))
             {
-                imgKFinal.at<Vec3b>(y,x)= img.at<Vec3b>(y,x); //diberi warna sesuai original
+                dst.at<Vec3b>(i,j) = colors[index-1];
             }
-
-           else
+            else
             {
-                imgKFinal.at<Vec3b>(y,x) = {255,255,255}; //jika tidak diberi warna putih
+                dst.at<Vec3b>(i,j) = Vec3b(255,255,255);
             }
         }
     }
 
-    // Show the result of img when assigned with original color
-    namedWindow("Kmeans",WINDOW_NORMAL);
-    imshow("Kmeans", imgKFinal);
+    // To check region
+    /*
+    Mat region1 = markers==contours.size();
+    namedWindow("Region1",CV_WINDOW_NORMAL);
+    imshow("Region1", region1);
     */
+
+    // Visualize the final image
+    namedWindow("Watershed",CV_WINDOW_NORMAL);
+    imshow("Watershed", dst);
+
+    // Extract colored nuclei from WT
+    Mat imgWTFinal(img.rows,img.cols,CV_8UC3);
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            int index = markers.at<int>(i,j);
+            // Jika bukan boundary
+            if (index > 0 && index <= static_cast<int>(contours.size()))
+            {
+                imgWTFinal.at<Vec3b>(i,j)= imgKMeansColor.at<Vec3b>(i,j); // beri sesuai warna
+            }
+            else
+            {
+                imgWTFinal.at<Vec3b>(i,j) = {255,255,255}; //jika tidak beri warna putih
+            }
+        }
+    }
+    namedWindow("Img WT Final",CV_WINDOW_NORMAL);
+    imshow("Img WT Final", imgWTFinal);
+
     waitKey();
     destroyAllWindows();
     return 0;
