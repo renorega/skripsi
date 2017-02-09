@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     Mat img,imgHSV;
 
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/5-7.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/55-68.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     //buat vector bgr tipe Mat
     vector<Mat> imgK;
     // split every channel of image filtered with median
-    split(imgMedian, imgK);
+    split(imgEqualized, imgK);
 
     /*
     // show S-channel from images
@@ -196,19 +196,22 @@ int main(int argc, char *argv[])
     // Normalize the distance image for range = {0.0, 1.0}
     // so we can visualize and threshold it
     normalize(imgDistTransform, imgDistTransform, 0, 1., NORM_MINMAX);
-    /*
+
     namedWindow("Distant Transform",CV_WINDOW_NORMAL);
     imshow("Distant Transform", imgDistTransform);
-    */
+
 
     // Extract peaks for markers for foreground objects with threshold and dilation
+    // Penentuan threshold ini akan mempengaruhi pembentukan marker dan akan mempengaruhi WT yang dihasilkan
     threshold(imgDistTransform, imgDistTransform, .4, 1., CV_THRESH_BINARY);
-    Mat kernel1 = Mat::ones(3, 3, CV_8UC1);
-    dilate(imgDistTransform, imgDistTransform, kernel1);
-    /*
     namedWindow("Peaks",CV_WINDOW_NORMAL);
     imshow("Peaks", imgDistTransform);
-    */
+
+    // Peaks with a little bit dilation
+    //Mat kernel1 = Mat::ones(3, 3, CV_8UC1);
+    //dilate(imgDistTransform, imgDistTransform, kernel1);
+    //namedWindow("Peaks Dilate",CV_WINDOW_NORMAL);
+    //imshow("Peaks Dilate", imgDistTransform);
 
      // Create markers for WT algorithm
      // Create the CV_8U version of the distance image
