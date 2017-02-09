@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     Mat img,imgHSV;
 
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/55-68.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/1-4.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
@@ -56,10 +56,11 @@ int main(int argc, char *argv[])
 
     // Perform median filtering
     // Trying median filter 7x7
+    /*
     Mat imgMedian;
     medianBlur(imgEqualized,imgMedian,7);
-    /*
     // show result of median filtering 7x7
+    /*
     namedWindow("Image Median",WINDOW_NORMAL);
     imshow("Image Median",imgMedian);
     */
@@ -186,6 +187,7 @@ int main(int argc, char *argv[])
     // Show the result of img when assigned with original color
     namedWindow("Kmeans Original Color",WINDOW_NORMAL);
     imshow("Kmeans Original Color", imgKMeansColor);
+    //imwrite("/home/reno/Pictures/WithoutMedian.jpg",imgKMeansColor);
 
     // Perform Dist Transform
     // Create imgDistInput because distanceTransform() need a CV_8U for input img
