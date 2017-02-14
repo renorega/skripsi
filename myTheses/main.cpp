@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     Mat img,imgHSV;
 
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/1-4.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/24-28.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 
     // Extract peaks for markers for foreground objects with threshold and dilation
     // Penentuan threshold ini akan mempengaruhi pembentukan marker dan akan mempengaruhi WT yang dihasilkan
-    threshold(imgDistTransform, imgDistTransform, .4, 1., CV_THRESH_BINARY);
+    threshold(imgDistTransform, imgDistTransform, .3, 1., CV_THRESH_BINARY);
     namedWindow("Peaks",CV_WINDOW_NORMAL);
     imshow("Peaks", imgDistTransform);
 
@@ -223,6 +223,7 @@ int main(int argc, char *argv[])
     //namedWindow("Peaks Dilate",CV_WINDOW_NORMAL);
     //imshow("Peaks Dilate", imgDistTransform);
 
+    /* ----------------------------------------------------------------------------------------------------------------------CEK SINI
      // Create markers for WT algorithm
      // Create the CV_8U version of the distance image
      // It is needed for findContours()
@@ -240,6 +241,7 @@ int main(int argc, char *argv[])
      circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
      namedWindow("Markers",CV_WINDOW_NORMAL);
      imshow("Markers", markers*10000);
+     /* -------------------------------------------------------------------------------------------------------------------SAMPAI SINI
 
     // Perform WT
     watershed(imgKMeansColor, markers);
