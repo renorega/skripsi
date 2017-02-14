@@ -189,6 +189,14 @@ int main(int argc, char *argv[])
     imshow("Kmeans Original Color", imgKMeansColor);
     //imwrite("/home/reno/Pictures/WithoutMedian.jpg",imgKMeansColor);
 
+    // Perform median filtering
+    // Trying median filter 7x7
+    Mat imgMedian;
+    medianBlur(imgKMeansColor,imgMedian,7);
+    // show result of median filtering 7x7
+    namedWindow("Image Median",WINDOW_NORMAL);
+    imshow("Image Median",imgMedian);
+
     // Perform Dist Transform
     // Create imgDistInput because distanceTransform() need a CV_8U for input img
     Mat imgDistInput;
