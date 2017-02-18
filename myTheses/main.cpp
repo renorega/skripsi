@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 
     // Extract peaks for markers for foreground objects with threshold and dilation
     // Penentuan threshold ini akan mempengaruhi pembentukan marker dan akan mempengaruhi WT yang dihasilkan
-    threshold(imgDistTransform, imgDistTransform, .3, 1., CV_THRESH_BINARY);
+    threshold(imgDistTransform, imgDistTransform, .4, 1., CV_THRESH_BINARY);
     namedWindow("Peaks",CV_WINDOW_NORMAL);
     imshow("Peaks", imgDistTransform);
 
@@ -223,25 +223,30 @@ int main(int argc, char *argv[])
     //namedWindow("Peaks Dilate",CV_WINDOW_NORMAL);
     //imshow("Peaks Dilate", imgDistTransform);
 
-    /* ----------------------------------------------------------------------------------------------------------------------CEK SINI
+    // ----------------------------------------------------------------------------------------------------------------------CEK SINI
      // Create markers for WT algorithm
      // Create the CV_8U version of the distance image
      // It is needed for findContours()
      Mat dist_8u;
      imgDistTransform.convertTo(dist_8u, CV_8U);
+
      // Find total markers
      vector<vector<Point> > contours;
      findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
      // Create the marker image for the watershed algorithm
-     Mat markers = Mat::zeros(imgDistTransform.size(), CV_32SC1);
+     Mat markers = Mat::zeros(imgDistTransform.size(), CV_32SC1); //SC1 -> Signed Char 1channel
+
      // Draw the foreground markers
      for (size_t i = 0; i < contours.size(); i++)
          drawContours(markers, contours, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
+
      // Draw the background marker
      circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
      namedWindow("Markers",CV_WINDOW_NORMAL);
      imshow("Markers", markers*10000);
-     /* -------------------------------------------------------------------------------------------------------------------SAMPAI SINI
+     // -------------------------------------------------------------------------------------------------------------------SAMPAI SINI
+
 
     // Perform WT
     watershed(imgKMeansColor, markers);
@@ -279,17 +284,38 @@ int main(int argc, char *argv[])
     }
 
     // To check region
-    /*
-    Mat region1 = markers==contours.size();
+    cout << contours.size();
+    Mat region1 = markers==7;
     namedWindow("Region1",CV_WINDOW_NORMAL);
     imshow("Region1", region1);
-    */
 
     // Visualize the final image
     namedWindow("Watershed",CV_WINDOW_NORMAL);
     imshow("Watershed", dst);
 
+    // Extract binary nucleifrom WT
+    Mat imgWT(img.rows,img.cols,CV_32F);
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            int index = markers.at<int>(i,j);
+            // Jika bukan boundary
+            if (index > 0 && index <= static_cast<int>(contours.size()))
+            {
+                imgWT.at<float>(i,j)= 255; // beri sesuai warna
+            }
+            else
+            {
+                imgWT.at<float>(i,j) = 0; //jika tidak beri warna putih
+            }
+        }
+    }
+    namedWindow("Img WT Binary",CV_WINDOW_NORMAL);
+    imshow("Img WT Binary", imgWT);
+
     // Extract colored nuclei from WT
+    /*
     Mat imgWTFinal(img.rows,img.cols,CV_8UC3);
     for (int i = 0; i < img.rows; i++)
     {
@@ -309,7 +335,7 @@ int main(int argc, char *argv[])
     }
     namedWindow("Img WT Final",CV_WINDOW_NORMAL);
     imshow("Img WT Final", imgWTFinal);
-
+    */
     waitKey();
     destroyAllWindows();
     return 0;
