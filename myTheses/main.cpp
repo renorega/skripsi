@@ -230,6 +230,10 @@ int main(int argc, char *argv[])
      Mat dist_8u;
      imgDistTransform.convertTo(dist_8u, CV_8U);
 
+     // Show img dist_8u for WT
+     namedWindow("dist8u",CV_WINDOW_NORMAL);
+     imshow("dist8u", dist_8u);
+
      // Find total markers
      vector<vector<Point> > contours;
      findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
@@ -283,9 +287,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    // To check region
-    cout << contours.size();
-    Mat region1 = markers==7;
+    // To check every region region
+    Mat region1 = markers==2;
     namedWindow("Region1",CV_WINDOW_NORMAL);
     imshow("Region1", region1);
 
@@ -293,8 +296,26 @@ int main(int argc, char *argv[])
     namedWindow("Watershed",CV_WINDOW_NORMAL);
     imshow("Watershed", dst);
 
-    // Extract binary nucleifrom WT
-    Mat imgWT(img.rows,img.cols,CV_32F);
+    // Calculate area inside every contour
+    for (unsigned int i = 0;  i < contours.size();  i++)
+    {
+        // Output contour points
+        //cout << "# of contour points: " << contours[i].size() << std::endl;
+
+         /*
+         // Output every point of contour
+         for (unsigned int j=0;  j<contours[i].size();  j++)
+         {
+             cout << "Point(x,y)=" << contours[i][j] << std::endl;
+         }
+         */
+
+        // Calculate the area inside contours
+        cout << " Area: " << i <<": "<< contourArea(contours[i]) << std::endl;
+    }
+
+    // Extract binary nuclei from WT
+    Mat imgWT(img.rows,img.cols,CV_8UC1);
     for (int i = 0; i < img.rows; i++)
     {
         for (int j = 0; j < img.cols; j++)
@@ -303,16 +324,76 @@ int main(int argc, char *argv[])
             // Jika bukan boundary
             if (index > 0 && index <= static_cast<int>(contours.size()))
             {
-                imgWT.at<float>(i,j)= 255; // beri sesuai warna
+                imgWT.at<char>(i,j)= 255; // beri sesuai warna
             }
             else
             {
-                imgWT.at<float>(i,j) = 0; //jika tidak beri warna putih
+                imgWT.at<char>(i,j) = 0; //jika tidak beri warna putih
             }
         }
     }
     namedWindow("Img WT Binary",CV_WINDOW_NORMAL);
     imshow("Img WT Binary", imgWT);
+
+    /*
+    // Setup SimpleBlobDetector parameters.
+    SimpleBlobDetector::Params params;
+
+    // Change thresholds
+    params.minThreshold = 10;
+    params.maxThreshold = 200;
+
+    // Filter by Area.
+    params.filterByArea = true;
+    params.minArea = 1500;
+
+    // Filter by Circularity
+    params.filterByCircularity = true;
+    params.minCircularity = 0.1;
+
+    // Filter by Convexity
+    params.filterByConvexity = true;
+    params.minConvexity = 0.87;
+
+    // Filter by Inertia
+    params.filterByInertia = true;
+    params.minInertiaRatio = 0.01;
+
+    #if CV_MAJOR_VERSION < 3   // If you are using OpenCV 2
+
+      // Set up detector with params
+      SimpleBlobDetector detector(params);
+
+      // You can use the detector this way
+      // detector.detect( im, keypoints);
+
+    #else
+
+      // Set up detector with params
+      Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
+
+      // SimpleBlobDetector::create creates a smart pointer.
+      // So you need to use arrow ( ->) instead of dot ( . )
+      // detector->detect( im, keypoints);
+
+    #endif
+    */
+
+    // Set up the detector with default parameters.
+    /*
+    SimpleBlobDetector detector(params);
+    // Detect blobs.
+    std::vector<KeyPoint> keypoints;
+    detector.detect( imgWT, keypoints);
+    // Draw detected blobs as red circles.
+    // DrawMatchesFlags::DRAW_RICH_KEYPOINTS flag ensures the size of the circle corresponds to the size of blob
+    Mat im_with_keypoints;
+    drawKeypoints( imgWT, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
+    // Show blobs
+    namedWindow("keypoints",CV_WINDOW_NORMAL);
+    imshow("keypoints", im_with_keypoints );
+    */
 
     // Extract colored nuclei from WT
     /*
