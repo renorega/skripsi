@@ -140,17 +140,21 @@ int main(int argc, char *argv[])
         imgKMeansGrayscale.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
     }
 
+    /*
     // Show the result of KMeans with grayscale
     namedWindow("Grayscale KMeans",WINDOW_NORMAL);
     imshow("Grayscale KMeans", imgKMeansGrayscale);
+    */
 
     // Perform Morphological Opening
     Mat imgMorphOpen;
     int kernelSize = 7;
     Mat element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
     morphologyEx(imgKMeansGrayscale, imgMorphOpen, MORPH_OPEN, element );
+    /*
     namedWindow("ImgMorphOpen",CV_WINDOW_NORMAL);
     imshow( "ImgMorphOpen", imgMorphOpen);
+    */
 
     // Perform Morphological Closing
     /*
@@ -184,18 +188,22 @@ int main(int argc, char *argv[])
         }
     }
 
+    /*
     // Show the result of img when assigned with original color
     namedWindow("Kmeans Original Color",WINDOW_NORMAL);
     imshow("Kmeans Original Color", imgKMeansColor);
     //imwrite("/home/reno/Pictures/WithoutMedian.jpg",imgKMeansColor);
+    */
 
     // Perform median filtering
     // Trying median filter 7x7
     Mat imgMedian;
     medianBlur(imgKMeansColor,imgMedian,7);
+    /*
     // show result of median filtering 7x7
     namedWindow("Image Median",WINDOW_NORMAL);
     imshow("Image Median",imgMedian);
+    */
 
     // Perform Dist Transform
     // Create imgDistInput because distanceTransform() need a CV_8U for input img
@@ -207,15 +215,18 @@ int main(int argc, char *argv[])
     // so we can visualize and threshold it
     normalize(imgDistTransform, imgDistTransform, 0, 1., NORM_MINMAX);
 
+    /*
     namedWindow("Distant Transform",CV_WINDOW_NORMAL);
     imshow("Distant Transform", imgDistTransform);
-
+    */
 
     // Extract peaks for markers for foreground objects with threshold and dilation
     // Penentuan threshold ini akan mempengaruhi pembentukan marker dan akan mempengaruhi WT yang dihasilkan
     threshold(imgDistTransform, imgDistTransform, .4, 1., CV_THRESH_BINARY);
+    /*
     namedWindow("Peaks",CV_WINDOW_NORMAL);
     imshow("Peaks", imgDistTransform);
+    */
 
     // Peaks with a little bit dilation
     //Mat kernel1 = Mat::ones(3, 3, CV_8UC1);
@@ -223,7 +234,6 @@ int main(int argc, char *argv[])
     //namedWindow("Peaks Dilate",CV_WINDOW_NORMAL);
     //imshow("Peaks Dilate", imgDistTransform);
 
-    // ----------------------------------------------------------------------------------------------------------------------CEK SINI
      // Create markers for WT algorithm
      // Create the CV_8U version of the distance image
      // It is needed for findContours()
@@ -231,8 +241,10 @@ int main(int argc, char *argv[])
      imgDistTransform.convertTo(dist_8u, CV_8U);
 
      // Show img dist_8u for WT
+     /*
      namedWindow("dist8u",CV_WINDOW_NORMAL);
      imshow("dist8u", dist_8u);
+     */
 
      // Find total markers
      vector<vector<Point> > contours;
@@ -247,9 +259,10 @@ int main(int argc, char *argv[])
 
      // Draw the background marker
      circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
+     /*
      namedWindow("Markers",CV_WINDOW_NORMAL);
      imshow("Markers", markers*10000);
-     // -------------------------------------------------------------------------------------------------------------------SAMPAI SINI
+     */
 
 
     // Perform WT
@@ -269,7 +282,7 @@ int main(int argc, char *argv[])
         colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
     }
     // Create the result image
-    Mat dst = Mat::zeros(markers.size(), CV_8UC3);
+    Mat imgWTBinary = Mat::zeros(markers.size(), CV_8UC1); // CV_8UC3
     // Fill labeled objects with random colors
     for (int i = 0; i < img.rows; i++)
     {
@@ -278,26 +291,70 @@ int main(int argc, char *argv[])
             int index = markers.at<int>(i,j);
             if (index > 0 && index <= static_cast<int>(contours.size()))
             {
-                dst.at<Vec3b>(i,j) = colors[index-1];
+                imgWTBinary.at<char>(i,j) = 255 ;//colors[index-1];
             }
             else
             {
-                dst.at<Vec3b>(i,j) = Vec3b(255,255,255);
+                imgWTBinary.at<char>(i,j) = 0;//Vec3b(255,255,255);
             }
         }
     }
 
-    // To check every region region
-    Mat region1 = markers==2;
-    namedWindow("Region1",CV_WINDOW_NORMAL);
-    imshow("Region1", region1);
-
     // Visualize the final image
-    namedWindow("Watershed",CV_WINDOW_NORMAL);
-    imshow("Watershed", dst);
+    namedWindow("Binary Watershed",CV_WINDOW_NORMAL);
+    imshow("Binary Watershed", imgWTBinary);
 
+    // Calculate the area of every markers manually
+    float area[contours.size()] = {0} ;
+    for (int row=0;row<markers.rows;row++)
+    {
+        for(int col=0;col<markers.cols;col++)
+        {
+            for(int index=0;index<contours.size();index++)
+            {
+                if(markers.at<int>(row,col)==index)
+                    area[index]++;
+            }
+        }
+    }
+
+    //Print area result
+    cout <<"Calculate area manually from WT img! \nResult:" << endl;
+    for(int i=0; i<contours.size();i++)
+        cout << "Area-" << i << ": " << area[i] << endl;
+
+    // To check every region from area manual calculation
+    Mat regionWTManual = markers==5;
+    namedWindow("Region WT Manual",CV_WINDOW_NORMAL);
+    imshow("Region WT Manual", regionWTManual);
+
+    /*
     // Calculate area inside every contour
     for (unsigned int i = 0;  i < contours.size();  i++)
+    {
+        // Output contour points
+        //cout << "# of contour points: " << contours[i].size() << std::endl;
+
+         // Output every point of contour
+         for (unsigned int j=0;  j<contours[i].size();  j++)
+         {
+             cout << "Point(x,y)=" << contours[i][j] << std::endl;
+         }
+        // Calculate the area inside contours
+        cout << " Area: " << i <<": "<< contourArea(contours[i]) << std::endl;
+    }
+    */
+
+    /*
+    // These lines will find the contour from binary image with findContours and use contourArea to get the area of every contour
+    // BUG!!!
+    imgWTBinary.convertTo(imgWTBinary, CV_8U);
+    vector<vector<Point> > contours_WT;
+    findContours(imgWTBinary, contours_WT, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+    cout << "WT area" << endl;
+    // Calculate area inside every contour
+    for (unsigned int i = 0;  i < contours_WT.size();  i++)
     {
         // Output contour points
         //cout << "# of contour points: " << contours[i].size() << std::endl;
@@ -308,34 +365,13 @@ int main(int argc, char *argv[])
          {
              cout << "Point(x,y)=" << contours[i][j] << std::endl;
          }
-         */
-
         // Calculate the area inside contours
-        cout << " Area: " << i <<": "<< contourArea(contours[i]) << std::endl;
+        cout << " Area: " << i <<": "<< contourArea(contours_WT[i]) << std::endl;
     }
-
-    // Extract binary nuclei from WT
-    Mat imgWT(img.rows,img.cols,CV_8UC1);
-    for (int i = 0; i < img.rows; i++)
-    {
-        for (int j = 0; j < img.cols; j++)
-        {
-            int index = markers.at<int>(i,j);
-            // Jika bukan boundary
-            if (index > 0 && index <= static_cast<int>(contours.size()))
-            {
-                imgWT.at<char>(i,j)= 255; // beri sesuai warna
-            }
-            else
-            {
-                imgWT.at<char>(i,j) = 0; //jika tidak beri warna putih
-            }
-        }
-    }
-    namedWindow("Img WT Binary",CV_WINDOW_NORMAL);
-    imshow("Img WT Binary", imgWT);
+    */
 
     /*
+    // These lines of code will try to find the area of blobs
     // Setup SimpleBlobDetector parameters.
     SimpleBlobDetector::Params params;
 
