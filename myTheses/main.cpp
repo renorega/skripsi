@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     Mat img,imgHSV;
 
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/24-28.jpg",IMREAD_COLOR);
+    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/1-4.jpg",IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
 
@@ -84,8 +84,8 @@ int main(int argc, char *argv[])
     imshow("S", imgK[1]);
     */
 
-    //Aplikasikan algoritma KMEANS
-    //buat matrix P kosong dengan ukuran row = column x row, col=1 dan tipe CV_32F
+    //PERFORM KMEANS
+    //Make empty Mat P with row = column x row, col=1 and type = CV_32F
     Mat p = Mat::zeros(img.cols*img.rows, 1, CV_32F);
     Mat bestLabels,centers,imgKMeansGrayscale;
     for(int i=0; i<img.cols*img.rows; i++) {
@@ -98,53 +98,51 @@ int main(int argc, char *argv[])
             TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0),
             3, KMEANS_PP_CENTERS, centers);
 
-    // Mencari label dengan rata-rata nilai S tertinggi
-    float sat[K] = {0,0,0,0}; // variable untuk mencari nilai S tertinggi
-    int div[K] = {0,0,0,0}; // untuk menghitung total area dari label
+    // Calculate mean value of saturation for every kmeans labels
+    float sat[K] = {0}; // store mean value of saturation
+    int div[K] = {0}; // store total area of every labels
     for (int label=0;label<K;label++)
     {
         for(int i=0;i<img.rows*img.cols;i++)
         {
-            if(bestLabels.at<int>(i,0)==label) // jika label i maka
+            if(bestLabels.at<int>(i,0)==label)
             {
-                sat[label] = sat[label] + imgK[1].data[i]/255.0; // hitung total nilai S-channel
-                div[label] +=1; // hitung area dari label
+                sat[label] = sat[label] + imgK[1].data[i]/255.0; // calculate total saturation
+                div[label] +=1; // calculate area of label
             }
         }
-        sat[label] = sat[label]/div[label]; // hitung rata-rata nilai S
+        sat[label] = sat[label]/div[label]; // calculate mean value of saturation
     }
 
-    // mencari label nukleus melalui nilai S tertinggi
-    float maxSat = sat[0]; // variabel untuk menyimpan nilai saturasi tertinggi
-    int indexSat = 0; // variabel untuk menyimpan label nukleus yaitu label yang memiliki nilai saturasi tertinggi
+    // Find labels with highest saturation
+    float maxSat = sat[0]; // store highest saturation value
+    int indexSat = 0; // store labels with highest saturation
     for(int i=1;i<K;i++)
     {
-        if(maxSat<sat[i]) // jika lebih besar maka itulah nilai yang lebih tinggi
+        if(maxSat<sat[i])
         {
             maxSat = sat[i];
-            indexSat = i; // menyimpan label nukleus
+            indexSat = i;
         }
     }
 
-    //buat ngasih warna 255 atau putih ke label nukleus
-    int colors[K]; //0 adalah hitam, 255 adalah putih
+    // Assign labels with white
+    int colors[K]; //0 is black, 255 is white
     for(int i=0;i<K;i++)
     {
-        if(i==indexSat) colors[i]=255; // jika label nukleus diberi warna putih
+        if(i==indexSat) colors[i]=255;
         else colors[i]=0;
     }
 
-    // Ngereshape plus ngasih warna dengan best labels
+    // Reshape and give color
     imgKMeansGrayscale= Mat(img.rows, img.cols, CV_32F);
     for(int i=0; i<img.cols*img.rows; i++) {
         imgKMeansGrayscale.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
     }
 
-    /*
     // Show the result of KMeans with grayscale
     namedWindow("Grayscale KMeans",WINDOW_NORMAL);
     imshow("Grayscale KMeans", imgKMeansGrayscale);
-    */
 
     // Perform Morphological Opening
     Mat imgMorphOpen;
@@ -172,7 +170,7 @@ int main(int argc, char *argv[])
     cout <<"Type:" << imgMorphFinal.type();
     */
 
-    // Mengembalikan warna dari img original yang memiliki 3 channel, convert image ke 3-ch img
+    // Colored result of KMeans
     Mat imgKMeansColor(img.rows,img.cols,CV_8UC3);
     for(int y=0;y<img.rows;y++){
         for(int x=0;x<img.cols;x++){
@@ -188,12 +186,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    /*
+
     // Show the result of img when assigned with original color
-    namedWindow("Kmeans Original Color",WINDOW_NORMAL);
-    imshow("Kmeans Original Color", imgKMeansColor);
+    namedWindow("Kmeans Result Colored",WINDOW_NORMAL);
+    imshow("Kmeans Result Colored", imgKMeansColor);
     //imwrite("/home/reno/Pictures/WithoutMedian.jpg",imgKMeansColor);
-    */
 
     // Perform median filtering
     // Trying median filter 7x7
@@ -259,10 +256,9 @@ int main(int argc, char *argv[])
 
      // Draw the background marker
      circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
-     /*
+
      namedWindow("Markers",CV_WINDOW_NORMAL);
      imshow("Markers", markers*10000);
-     */
 
 
     // Perform WT
@@ -281,9 +277,11 @@ int main(int argc, char *argv[])
         int r = theRNG().uniform(0, 255);
         colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
     }
-    // Create the result image
+    // Create the result image for colored version and binary version
+    Mat imgWT = Mat::zeros(markers.size(), CV_8UC3); // CV_8UC3
     Mat imgWTBinary = Mat::zeros(markers.size(), CV_8UC1); // CV_8UC3
-    // Fill labeled objects with random colors
+
+    // Fill labeled objects with random colors and make binary image
     for (int i = 0; i < img.rows; i++)
     {
         for (int j = 0; j < img.cols; j++)
@@ -291,26 +289,33 @@ int main(int argc, char *argv[])
             int index = markers.at<int>(i,j);
             if (index > 0 && index <= static_cast<int>(contours.size()))
             {
-                imgWTBinary.at<char>(i,j) = 255 ;//colors[index-1];
+                imgWT.at<Vec3b>(i,j) = colors[index-1];
+                imgWTBinary.at<char>(i,j) = 255;
             }
             else
             {
-                imgWTBinary.at<char>(i,j) = 0;//Vec3b(255,255,255);
+                imgWT.at<Vec3b>(i,j) =Vec3b(255,255,255);
+                imgWTBinary.at<char>(i,j) = 0;
             }
         }
     }
 
-    // Visualize the final image
+    // Show the result of WT
+    namedWindow("WT Result",CV_WINDOW_NORMAL);
+    imshow("WT Result", imgWT);
+
+    // Show the binary result of WT Binary
     namedWindow("Binary Watershed",CV_WINDOW_NORMAL);
     imshow("Binary Watershed", imgWTBinary);
 
     // Calculate the area of every markers manually
-    float area[contours.size()] = {0} ;
+    float area[contours.size()+1] = {0};
     for (int row=0;row<markers.rows;row++)
     {
         for(int col=0;col<markers.cols;col++)
         {
-            for(int index=0;index<contours.size();index++)
+            // because background are not included in contours , so we can use <contours.size()+1 or <=contours.size()
+            for(int index=0;index<=contours.size();index++)
             {
                 if(markers.at<int>(row,col)==index)
                     area[index]++;
@@ -318,15 +323,30 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Manually find max value from array
+    float maxArea=0;
+    int indexMaxArea;
+    cout << "Contours size: " << contours.size() << endl;
+    for(int i=0; i<=contours.size();i++)
+        // If background are extracted into WT region, so region with more than 100000 pixels are ignored
+        if(area[i]>maxArea && area[i]<100000)
+        {
+            maxArea=area[i];
+            indexMaxArea = i;
+        }
+
     //Print area result
     cout <<"Calculate area manually from WT img! \nResult:" << endl;
-    for(int i=0; i<contours.size();i++)
+    for(int i=0; i<=contours.size();i++)
         cout << "Area-" << i << ": " << area[i] << endl;
 
-    // To check every region from area manual calculation
-    Mat regionWTManual = markers==5;
-    namedWindow("Region WT Manual",CV_WINDOW_NORMAL);
-    imshow("Region WT Manual", regionWTManual);
+    // Print max area
+    cout << "Max area of WT: " << maxArea << " from index: " << indexMaxArea <<endl;
+
+    // Show largest region from WT
+    Mat regionWTManual = markers==indexMaxArea;
+    namedWindow("Largest WT Region",CV_WINDOW_NORMAL);
+    imshow("Largest WT Region", regionWTManual);
 
     /*
     // Calculate area inside every contour
