@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <string>
 using namespace std;
 using namespace cv;
 
@@ -7,11 +8,15 @@ int main(int argc, char *argv[])
 {
     //loading image
     Mat img,imgHSV;
-
+    string location = "/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/";
+    string nameFile= "51-54.jpg";
+    string path = location+nameFile;
+    cout <<"File: " << nameFile << endl;
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
-    img = imread("/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/88-94.jpg",IMREAD_COLOR);
+    img = imread(path,IMREAD_COLOR);
     namedWindow("Original",WINDOW_NORMAL);
     imshow("Original",img);
+    cout << "img rows : " << img.rows << " img cols :" << img.cols << endl;
 
     // convert image into HSV
     // HSV_FULL gives Hue value between 0-255, while HSV gives Hue value between 0-180 (H/2)
@@ -188,8 +193,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    //imwrite("/home/reno/Pictures/WithoutMedian.jpg",imgKMeansColor);
-
     // Perform median filtering
     // Trying median filter 7x7
     //Mat imgMedian;
@@ -221,6 +224,7 @@ int main(int argc, char *argv[])
     imshow("Distant Transform", imgDistTransform);
     */
     float thresholdValue = 0.4;
+    cout << "First threshold value: " << thresholdValue << endl;
     // Extract peaks for markers for foreground objects with threshold and dilation
     // Penentuan threshold ini akan mempengaruhi pembentukan marker dan akan mempengaruhi WT yang dihasilkan
     threshold(imgDistTransform, imgDistTransform, thresholdValue, 1., CV_THRESH_BINARY);
@@ -327,8 +331,9 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Find connected nuclei area that are larger than 35.000
     // Manually find max value from array
-    float maxArea=0;
+    int maxArea=0;
     int indexMaxArea;
     cout << "Contours size: " << contours.size() << endl;
     for(int i=0; i<=static_cast<int>(contours.size());i++)
@@ -347,13 +352,18 @@ int main(int argc, char *argv[])
     // Print max area
     cout << "Max area of WT: " << maxArea << " from index: " << indexMaxArea <<endl;
 
+    // Show a region from WT
+    Mat regionWT= markers==8;
+    namedWindow("region WT",CV_WINDOW_NORMAL);
+    imshow("region WT", regionWT);
 
     // Find region that are larger than 40.000 pixels
-    // PERFORM SECOND WT IF THERE IS STILL AREA LARGER THAN 40.000 pixels!
+    // PERFORM SECOND WT IF THERE IS STILL AREA LARGER THAN 35.000 pixels!
     float indexConnectedNuclei;
-    if(maxArea>35000) //40000
+    if(maxArea>36000) //40000
     {
         indexConnectedNuclei = indexMaxArea;
+        //indexConnectedNuclei = 4; // to check other region
         // Show connected nuclei from WT
         Mat connectedNuclei= markers==indexConnectedNuclei;
         namedWindow("Connected Nuclei",CV_WINDOW_NORMAL);
@@ -391,7 +401,6 @@ int main(int argc, char *argv[])
          // Find total markers
          vector<vector<Point> > contoursConnectedNuclei;
          findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-         cout << contoursConnectedNuclei.size() << endl;
 
          // Parameter for finding threshold value for distant transform
          bool successWT= false, successWTLarger = false;
@@ -428,8 +437,9 @@ int main(int argc, char *argv[])
              contoursConnectedNuclei.clear(); // clear vector
              findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-             cout << contoursConnectedNuclei.size() << endl;
-             cout << "thresholdValue: "<< thresholdValue << endl;
+             cout << "Threshold Value: "<< thresholdValue;
+             cout << "\tTotal region :" << contoursConnectedNuclei.size() << endl;
+
              if(contoursConnectedNuclei.size()==2)
              {
                  successWT = true;
@@ -462,7 +472,7 @@ int main(int argc, char *argv[])
          for (size_t i = 0; i < contoursConnectedNuclei.size(); i++)
              drawContours(markersConnectedNuclei, contoursConnectedNuclei, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
 
-         cout << "Contours size of connected nuclei : " << contoursConnectedNuclei.size() << endl;
+         cout << "Final region numbers after second WT: " << contoursConnectedNuclei.size() << endl;
          // Draw the background marker
          circle(markersConnectedNuclei, Point(5,5), 3, CV_RGB(255,255,255), -1);
 
@@ -488,8 +498,30 @@ int main(int argc, char *argv[])
          namedWindow("Connected Nuclei Color",CV_WINDOW_NORMAL);
          imshow("Connected Nuclei Color",connectedNucleiColor );
 
-        // Perform WT
+        // Perform second WT
         watershed(connectedNucleiColor, markersConnectedNuclei);
+
+        cout << "Final threshold value: " << thresholdValue << endl ;
+        cout << "Final threshold value big : " << thresholdValueBig << endl ;
+        // Calculate the area of every markers manually after second WT
+        float areaConnectedNuclei[contoursConnectedNuclei.size()+1] = {0};
+        for (int row=0;row<markersConnectedNuclei.rows;row++)
+        {
+            for(int col=0;col<markersConnectedNuclei.cols;col++)
+            {
+                // because background are not included in contours , so we can use <contours.size()+1 or <=contours.size()
+                for(size_t index=0;index<=contoursConnectedNuclei.size();index++)
+                {
+                    if(markersConnectedNuclei.at<int>(row,col)==index)
+                        areaConnectedNuclei[index]++;
+                }
+            }
+        }
+
+        //Print area result after second WT
+        cout <<"Calculate area manually from second WT! \nResult:" << endl;
+        for(size_t i=0; i<=contoursConnectedNuclei.size();i++)
+            cout << "Area-" << i << ": " << areaConnectedNuclei[i] << endl;
 
         // Create the result image for colored version and binary version
         Mat imgWTConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC3); // CV_8UC3
