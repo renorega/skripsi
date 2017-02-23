@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <string>
+#include <cmath>
 using namespace std;
 using namespace cv;
 
@@ -9,7 +10,7 @@ int main(int argc, char *argv[])
     //loading image
     Mat img,imgHSV;
     string location = "/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/";
-    string nameFile= "51-54.jpg";
+    string nameFile= "29-39.jpg";
     string path = location+nameFile;
     cout <<"File: " << nameFile << endl;
     // use IMREAD_COLOR to access image in BGR format as 8 bit image
@@ -331,238 +332,442 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Find connected nuclei area that are larger than 35.000
+    // Find connected nuclei area that are larger than 36.000
     // Manually find max value from array
+    int thresholdNuclei = 36000;
+    float areaNucleiIndividu = 20000; // based on the sample of 100 nucleis, mean value of the area is 19.607
     int maxArea=0;
-    int indexMaxArea;
+
+    vector<int>indexConnectedNuclei; // contain index of connected nuclei
+    vector<float>areaConnectedNuclei; // contain area of connected nuclei
+    bool isSecondWT = false; // flag to save
     cout << "Contours size: " << contours.size() << endl;
     for(int i=0; i<=static_cast<int>(contours.size());i++)
         // If background are extracted into WT region, so region with more than 100000 pixels are ignored
-        if(area[i]>maxArea && area[i]<100000)
+        if(area[i]>thresholdNuclei && area[i]<100000)
         {
-            maxArea=area[i];
-            indexMaxArea = i;
+            indexConnectedNuclei.push_back(i);
         }
+    if(indexConnectedNuclei.size()>0)
+        isSecondWT = true;
 
     //Print area result
     cout <<"Calculate area manually from WT img! \nResult:" << endl;
     for(int i=0; i<=static_cast<int>(contours.size());i++)
         cout << "Area-" << i << ": " << area[i] << endl;
 
+    // Calculate target region connected nuclei
+    vector<float>targetRegionConnectedNuclei; // contain target region of connected nuclei
+    for (int i:indexConnectedNuclei)
+    {
+        int tempTarget = round(area[i]/areaNucleiIndividu);
+        targetRegionConnectedNuclei.push_back(tempTarget);
+    }
+
+    // Print indexConnectedNuclei and its area
+    for (int i=0;i<indexConnectedNuclei.size();i++)
+    {
+        cout << "Index connected nuclei: " << indexConnectedNuclei[i] << " Area connected nuclei : " << area[indexConnectedNuclei[i]] << " Target region: " << targetRegionConnectedNuclei[i] << endl;
+    }
+
+    // Extract the connected nuclei
+    Mat connectedNuclei;
+    for(int i=0;i<indexConnectedNuclei.size();i++)
+    {
+        connectedNuclei = connectedNuclei + (markers==indexConnectedNuclei[i]);
+    }
+
+    namedWindow("Connected Nuclei",CV_WINDOW_NORMAL);
+    imshow("Connected Nuclei", connectedNuclei);
+
+    // Colored result of Connected Nuclei
+    Mat connectedNucleiColor(img.rows,img.cols,CV_8UC3);
+    for(int y=0;y<img.rows;y++)
+    {
+        for(int x=0;x<img.cols;x++)
+        {
+            if(connectedNuclei.at<unsigned char>(y,x)) // jika ada warna atau tidak sama dengan 0
+            {
+                connectedNucleiColor.at<Vec3b>(y,x)= imgKMeansColor.at<Vec3b>(y,x); //diberi warna sesuai original
+            }
+
+            else
+            {
+                connectedNucleiColor.at<Vec3b>(y,x) = Vec3b{255,255,255}; //jika tidak diberi warna
+            }
+        }
+    }
+
+    namedWindow("Connected Nuclei Color",CV_WINDOW_NORMAL);
+    imshow("Connected Nuclei Color", connectedNucleiColor);
+
+    Mat allConnectedNucleiPeaks;
+    vector<vector<vector<Point>>>listContoursConnectedNuclei;
+    // Perform second WT
+    if(isSecondWT)
+    {
+        cout << "\nPerforming second WT . . .\n" << endl;
+        for(int i=0;i<indexConnectedNuclei.size();i++)
+        {
+            cout <<"Performing the " << i << " index"<<endl;
+            int targetContour = targetRegionConnectedNuclei[i];
+            Mat connectedNuclei= markers== indexConnectedNuclei[i];
+
+            namedWindow("Connected Nuclei i",CV_WINDOW_NORMAL);
+            imshow("Connected Nuclei i", connectedNuclei);
+
+            // Perform Dist Transform
+            // Create imgDistInput because distanceTransform() need a CV_8U for input img
+            Mat connectedNucleiDistInput;
+            connectedNuclei.convertTo(connectedNucleiDistInput,CV_8U);
+            Mat connectedNucleiDistTransform;
+            distanceTransform(connectedNucleiDistInput, connectedNucleiDistTransform, CV_DIST_L2, 5);
+
+            normalize(connectedNucleiDistTransform, connectedNucleiDistTransform, 0, 1., NORM_MINMAX);
+
+            thresholdValue += 0.05; // This value for thresholding second WT
+            Mat connectedNucleiPeaks;
+            threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
+
+            // Create markers for WT algorithm
+            // Create the CV_8U version of the distance image
+            // It is needed for findContours()
+            Mat connectedNuclei8u;
+            connectedNucleiPeaks.convertTo(connectedNuclei8u, CV_8U);
+
+            // Find total markers
+            vector<vector<Point>> contoursConnectedNuclei;
+            findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+            // Parameter for finding threshold value for distant transform
+            bool successWT= false, isLargerSize= false;
+            int largerSize = static_cast<int>(contoursConnectedNuclei.size());
+            float thresholdValueBig = 0;
+
+            vector<vector<Point>> contoursConnectedNucleiLarger;
+            Mat connectedNucleiPeaksLarger;
+            cout << "Contours size : " << contoursConnectedNuclei.size() << endl;
+
+            while(static_cast<int>(contoursConnectedNuclei.size())!=targetContour)
+            {
+                // If threshold value reached 1.0 or more and can't get target Contour
+                // To prevent from infinity loop
+                if(thresholdValue>=1.0) break;
+
+                // Store the contour and peaks
+                /*
+                if(contoursConnectedNuclei.size()<largerSize && !isLargerSize && contoursConnectedNuclei.size()>targetContour)
+                {
+                    contoursConnectedNucleiLarger = contoursConnectedNuclei;
+                    connectedNucleiPeaksLarger = connectedNucleiPeaks;
+                    isLargerSize = true;
+                    largerSize = contoursConnectedNuclei.size();
+                    thresholdValueBig = thresholdValue;
+                }
+                */
+
+                thresholdValue = thresholdValue + 0.05;
+                threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
+
+                connectedNucleiPeaks.convertTo(connectedNuclei8u, CV_8U);
+
+                contoursConnectedNuclei.clear(); // clear vector
+                findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+                cout << "Threshold Value: "<< thresholdValue;
+                cout << "\tTotal region :" << contoursConnectedNuclei.size() << endl;
+
+                if(static_cast<int>(contoursConnectedNuclei.size())==targetContour)
+                {
+                    listContoursConnectedNuclei.push_back(contoursConnectedNuclei);
+                    successWT = true;
+                    break;
+                }
+            }
+
+            /*
+            if(!successWT && isLargerSize )
+            {
+                thresholdValue = thresholdValueBig;
+                threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
+                connectedNucleiPeaksLarger.convertTo(connectedNuclei8u, CV_8U);
+                contoursConnectedNuclei = contoursConnectedNucleiLarger;
+                //contoursConnectedNuclei.clear(); // clear vector
+                //cout << contoursConnectedNuclei.size() << endl;
+                //findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+            }
+
+            if(!successWT && !isLargerSize)
+                cout << "This is single nucleus!" << endl;
+            */
+
+            // END OF NEW SECOND WT
+            allConnectedNucleiPeaks = allConnectedNucleiPeaks + (connectedNucleiPeaks!=0);
+            //connectedNuclei = connectedNuclei + (markers==indexConnectedNuclei[i]);
+        }
+    }
+
+    namedWindow("All Connected Nuclei Peaks",CV_WINDOW_NORMAL);
+    imshow("All Connected Nuclei Peaks", allConnectedNucleiPeaks);
+
+    // Create the marker image for the watershed algorithm
+    Mat markersConnectedNuclei = Mat::zeros(allConnectedNucleiPeaks.size(), CV_32SC1); //SC1 -> Signed Char 1channel
+
+    // SAMPAI SINI -- GAGAL DRAW CONTOUR
+
+//    // Draw the foreground markers
+    for(size_t i=0; i<listContoursConnectedNuclei.size();i++ )
+    {
+        for (size_t j = 0; j < listContoursConnectedNuclei[i].size(); j++)
+            drawContours(markersConnectedNuclei, listContoursConnectedNuclei[i], static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
+    }
+
+//    cout << "Final region numbers after second WT: " << contoursConnectedNuclei.size() << endl;
+    // Draw the background marker
+    circle(markersConnectedNuclei, Point(5,5), 3, CV_RGB(255,255,255), -1);
+    watershed(connectedNucleiColor,markersConnectedNuclei);
+
+    Mat imgWTConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC3); // CV_8UC3
+    Mat imgWTBinaryConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC1); // CV_8UC3
+    // Fill labeled objects with random colors and make binary image
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            int index = markersConnectedNuclei.at<int>(i,j);
+            if (index > 0 && index <= static_cast<int>(listContoursConnectedNuclei.size()))
+            {
+                imgWTConnectedNuclei.at<Vec3b>(i,j) = colors2[index-1];
+                imgWTBinaryConnectedNuclei.at<char>(i,j) = 255;
+            }
+            else
+            {
+                imgWTConnectedNuclei.at<Vec3b>(i,j) =Vec3b(255,255,255);
+                imgWTBinaryConnectedNuclei.at<char>(i,j) = 0;
+            }
+        }
+    }
+
+    namedWindow("WT Result of Connected Nuclei",CV_WINDOW_NORMAL);
+    imshow("WT Result of Connected Nuclei", imgWTConnectedNuclei);
+
+// PROGRAM SEBELUMNYA
     // Print max area
-    cout << "Max area of WT: " << maxArea << " from index: " << indexMaxArea <<endl;
+    //cout << "Max area of WT: " << maxArea << " from index: " << indexMaxArea <<endl;
 
     // Show a region from WT
-    Mat regionWT= markers==8;
-    namedWindow("region WT",CV_WINDOW_NORMAL);
-    imshow("region WT", regionWT);
+//    Mat regionWT= markers==4;
+//    namedWindow("region WT",CV_WINDOW_NORMAL);
+//    imshow("region WT", regionWT);
 
     // Find region that are larger than 40.000 pixels
     // PERFORM SECOND WT IF THERE IS STILL AREA LARGER THAN 35.000 pixels!
-    float indexConnectedNuclei;
-    if(maxArea>36000) //40000
-    {
-        indexConnectedNuclei = indexMaxArea;
-        //indexConnectedNuclei = 4; // to check other region
-        // Show connected nuclei from WT
-        Mat connectedNuclei= markers==indexConnectedNuclei;
-        namedWindow("Connected Nuclei",CV_WINDOW_NORMAL);
-        imshow("Connected Nuclei", connectedNuclei);
+    //float indexConnectedNuclei;
 
-        // Perform Dist Transform
-        // Create imgDistInput because distanceTransform() need a CV_8U for input img
-        Mat connectedNucleiDistInput;
-        connectedNuclei.convertTo(connectedNucleiDistInput,CV_8U);
-        Mat connectedNucleiDistTransform;
-        distanceTransform(connectedNucleiDistInput, connectedNucleiDistTransform, CV_DIST_L2, 5);
+//    if(maxArea>36000) //40000
+//    {
+//        indexConnectedNuclei = indexMaxArea;
+//        //indexConnectedNuclei = 4; // to check other region
+//        // Show connected nuclei from WT
+//        Mat connectedNuclei= markers==indexConnectedNuclei;
+//        namedWindow("Connected Nuclei",CV_WINDOW_NORMAL);
+//        imshow("Connected Nuclei", connectedNuclei);
 
-        normalize(connectedNucleiDistTransform, connectedNucleiDistTransform, 0, 1., NORM_MINMAX);
+//        // Perform Dist Transform
+//        // Create imgDistInput because distanceTransform() need a CV_8U for input img
+//        Mat connectedNucleiDistInput;
+//        connectedNuclei.convertTo(connectedNucleiDistInput,CV_8U);
+//        Mat connectedNucleiDistTransform;
+//        distanceTransform(connectedNucleiDistInput, connectedNucleiDistTransform, CV_DIST_L2, 5);
 
-        // Show distant transform of connected nuclei
-        /*
-        namedWindow("Connected Nuclei Distant Transform",CV_WINDOW_NORMAL);
-        imshow("Connected Nuclei Distant Transform", connectedNucleiDistTransform);
-        */
+//        normalize(connectedNucleiDistTransform, connectedNucleiDistTransform, 0, 1., NORM_MINMAX);
 
-        thresholdValue += 0.05; // This value for thresholding second WT
-        Mat connectedNucleiPeaks;
-        threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
+//        // Show distant transform of connected nuclei
+//        /*
+//        namedWindow("Connected Nuclei Distant Transform",CV_WINDOW_NORMAL);
+//        imshow("Connected Nuclei Distant Transform", connectedNucleiDistTransform);
+//        */
 
-        // Show peaks of connected nuclei
-        namedWindow("Peaks Connected Nuclei",CV_WINDOW_NORMAL);
-        imshow("Peaks Connected Nuclei", connectedNucleiPeaks);
+//        thresholdValue += 0.05; // This value for thresholding second WT
+//        Mat connectedNucleiPeaks;
+//        threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
 
-         // Create markers for WT algorithm
-         // Create the CV_8U version of the distance image
-         // It is needed for findContours()
-         Mat connectedNuclei8u;
-         connectedNucleiPeaks.convertTo(connectedNuclei8u, CV_8U);
+//        // Show peaks of connected nuclei
+//        namedWindow("Peaks Connected Nuclei",CV_WINDOW_NORMAL);
+//        imshow("Peaks Connected Nuclei", connectedNucleiPeaks);
 
-         // Find total markers
-         vector<vector<Point> > contoursConnectedNuclei;
-         findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+//         // Create markers for WT algorithm
+//         // Create the CV_8U version of the distance image
+//         // It is needed for findContours()
+//         Mat connectedNuclei8u;
+//         connectedNucleiPeaks.convertTo(connectedNuclei8u, CV_8U);
 
-         // Parameter for finding threshold value for distant transform
-         bool successWT= false, successWTLarger = false;
-         size_t targetContour = 2; // 2 * region of connected nuclei
-         size_t largerSize = contoursConnectedNuclei.size();
-         float thresholdValueBig = 0;
+//         // Find total markers
+//         vector<vector<Point> > contoursConnectedNuclei;
+//         findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-         vector<vector<Point>> contoursConnectedNucleiLarger;
-         Mat connectedNucleiPeaksLarger;
+//         // Parameter for finding threshold value for distant transform
+//         bool successWT= false, successWTLarger = false;
+//         size_t targetContour = 2; // 2 * region of connected nuclei
+//         size_t largerSize = contoursConnectedNuclei.size();
+//         float thresholdValueBig = 0;
 
-         // Check whether thresholding distant transform is success extracted two region or not, if not then change threshold value of distant transform until find two region
-         // LAST PROGRESS!
-         while(static_cast<int>(contoursConnectedNuclei.size())!=targetContour)
-         {
-             // If threshold value reached 1.0 or more and can't get target Contour
-             // To prevent from infinity loop
-             if(thresholdValue>=1.0) break;
+//         vector<vector<Point>> contoursConnectedNucleiLarger;
+//         Mat connectedNucleiPeaksLarger;
 
-             // Store the contour and peaks
-             if(contoursConnectedNuclei.size()<largerSize && largerSize!=0 && contoursConnectedNuclei.size()>targetContour)
-             {
-                 contoursConnectedNucleiLarger = contoursConnectedNuclei;
-                 connectedNucleiPeaksLarger = connectedNucleiPeaks;
-                 successWTLarger = true;
-                 largerSize = contoursConnectedNuclei.size();
-                 //thresholdValueBig = thresholdValue;
-             }
+//         // Check whether thresholding distant transform is success extracted two region or not, if not then change threshold value of distant transform until find two region
+//         // LAST PROGRESS!
+//         while(static_cast<int>(contoursConnectedNuclei.size())!=targetContour)
+//         {
+//             // If threshold value reached 1.0 or more and can't get target Contour
+//             // To prevent from infinity loop
+//             if(thresholdValue>=1.0) break;
 
-             thresholdValue = thresholdValue + 0.05;
-             threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
+//             // Store the contour and peaks
+//             if(contoursConnectedNuclei.size()<largerSize && largerSize!=0 && contoursConnectedNuclei.size()>targetContour)
+//             {
+//                 contoursConnectedNucleiLarger = contoursConnectedNuclei;
+//                 connectedNucleiPeaksLarger = connectedNucleiPeaks;
+//                 successWTLarger = true;
+//                 largerSize = contoursConnectedNuclei.size();
+//                 //thresholdValueBig = thresholdValue;
+//             }
 
-             connectedNucleiPeaks.convertTo(connectedNuclei8u, CV_8U);
+//             thresholdValue = thresholdValue + 0.05;
+//             threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
 
-             contoursConnectedNuclei.clear(); // clear vector
-             findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+//             connectedNucleiPeaks.convertTo(connectedNuclei8u, CV_8U);
 
-             cout << "Threshold Value: "<< thresholdValue;
-             cout << "\tTotal region :" << contoursConnectedNuclei.size() << endl;
+//             contoursConnectedNuclei.clear(); // clear vector
+//             findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-             if(contoursConnectedNuclei.size()==2)
-             {
-                 successWT = true;
-                 break;
-             }
-         }
+//             cout << "Threshold Value: "<< thresholdValue;
+//             cout << "\tTotal region :" << contoursConnectedNuclei.size() << endl;
 
-         if(!successWT && successWTLarger)
-         {
-             //thresholdValue = thresholdValueBig;
-             //threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
-             connectedNucleiPeaksLarger.convertTo(connectedNuclei8u, CV_8U);
-             contoursConnectedNuclei = contoursConnectedNucleiLarger;
-             //contoursConnectedNuclei.clear(); // clear vector
-             //cout << contoursConnectedNuclei.size() << endl;
-             //findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-         }
+//             if(contoursConnectedNuclei.size()==2)
+//             {
+//                 successWT = true;
+//                 break;
+//             }
+//         }
 
-         if(!successWT && !successWTLarger)
-             cout << "This is single nucleus!" << endl;
+//         if(!successWT && successWTLarger)
+//         {
+//             //thresholdValue = thresholdValueBig;
+//             //threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
+//             connectedNucleiPeaksLarger.convertTo(connectedNuclei8u, CV_8U);
+//             contoursConnectedNuclei = contoursConnectedNucleiLarger;
+//             //contoursConnectedNuclei.clear(); // clear vector
+//             //cout << contoursConnectedNuclei.size() << endl;
+//             //findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+//         }
 
-         // Show peaks of connected nuclei
-         namedWindow("Peaks Connected Nuclei",CV_WINDOW_NORMAL);
-         imshow("Peaks Connected Nuclei", connectedNucleiPeaks);
+//         if(!successWT && !successWTLarger)
+//             cout << "This is single nucleus!" << endl;
 
-         // Create the marker image for the watershed algorithm
-         Mat markersConnectedNuclei = Mat::zeros(connectedNucleiPeaks.size(), CV_32SC1); //SC1 -> Signed Char 1channel
+//         // Show peaks of connected nuclei
+//         namedWindow("Peaks Connected Nuclei",CV_WINDOW_NORMAL);
+//         imshow("Peaks Connected Nuclei", connectedNucleiPeaks);
 
-         // Draw the foreground markers
-         for (size_t i = 0; i < contoursConnectedNuclei.size(); i++)
-             drawContours(markersConnectedNuclei, contoursConnectedNuclei, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
+//         // Create the marker image for the watershed algorithm
+//         Mat markersConnectedNuclei = Mat::zeros(connectedNucleiPeaks.size(), CV_32SC1); //SC1 -> Signed Char 1channel
 
-         cout << "Final region numbers after second WT: " << contoursConnectedNuclei.size() << endl;
-         // Draw the background marker
-         circle(markersConnectedNuclei, Point(5,5), 3, CV_RGB(255,255,255), -1);
+//         // Draw the foreground markers
+//         for (size_t i = 0; i < contoursConnectedNuclei.size(); i++)
+//             drawContours(markersConnectedNuclei, contoursConnectedNuclei, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
 
-         // Colored result of Connected Nuclei
-         Mat connectedNucleiColor(img.rows,img.cols,CV_8UC3);
-         for(int y=0;y<img.rows;y++)
-         {
-             for(int x=0;x<img.cols;x++)
-             {
-                 if(connectedNuclei.at<unsigned char>(y,x)) // jika ada warna atau tidak sama dengan 0
-                 {
-                     connectedNucleiColor.at<Vec3b>(y,x)= imgKMeansColor.at<Vec3b>(y,x); //diberi warna sesuai original
-                 }
+//         cout << "Final region numbers after second WT: " << contoursConnectedNuclei.size() << endl;
+//         // Draw the background marker
+//         circle(markersConnectedNuclei, Point(5,5), 3, CV_RGB(255,255,255), -1);
 
-                else
-                 {
-                     connectedNucleiColor.at<Vec3b>(y,x) = Vec3b{255,255,255}; //jika tidak diberi warna
-                 }
-             }
-         }
+//         // Colored result of Connected Nuclei
+//         Mat connectedNucleiColor(img.rows,img.cols,CV_8UC3);
+//         for(int y=0;y<img.rows;y++)
+//         {
+//             for(int x=0;x<img.cols;x++)
+//             {
+//                 if(connectedNuclei.at<unsigned char>(y,x)) // jika ada warna atau tidak sama dengan 0
+//                 {
+//                     connectedNucleiColor.at<Vec3b>(y,x)= imgKMeansColor.at<Vec3b>(y,x); //diberi warna sesuai original
+//                 }
 
-         // Show connected nuclei color
-         namedWindow("Connected Nuclei Color",CV_WINDOW_NORMAL);
-         imshow("Connected Nuclei Color",connectedNucleiColor );
+//                else
+//                 {
+//                     connectedNucleiColor.at<Vec3b>(y,x) = Vec3b{255,255,255}; //jika tidak diberi warna
+//                 }
+//             }
+//         }
 
-        // Perform second WT
-        watershed(connectedNucleiColor, markersConnectedNuclei);
+//         // Show connected nuclei color
+//         namedWindow("Connected Nuclei Color",CV_WINDOW_NORMAL);
+//         imshow("Connected Nuclei Color",connectedNucleiColor );
 
-        cout << "Final threshold value: " << thresholdValue << endl ;
-        cout << "Final threshold value big : " << thresholdValueBig << endl ;
-        // Calculate the area of every markers manually after second WT
-        float areaConnectedNuclei[contoursConnectedNuclei.size()+1] = {0};
-        for (int row=0;row<markersConnectedNuclei.rows;row++)
-        {
-            for(int col=0;col<markersConnectedNuclei.cols;col++)
-            {
-                // because background are not included in contours , so we can use <contours.size()+1 or <=contours.size()
-                for(size_t index=0;index<=contoursConnectedNuclei.size();index++)
-                {
-                    if(markersConnectedNuclei.at<int>(row,col)==index)
-                        areaConnectedNuclei[index]++;
-                }
-            }
-        }
+//        // Perform second WT
+//        watershed(connectedNucleiColor, markersConnectedNuclei);
 
-        //Print area result after second WT
-        cout <<"Calculate area manually from second WT! \nResult:" << endl;
-        for(size_t i=0; i<=contoursConnectedNuclei.size();i++)
-            cout << "Area-" << i << ": " << areaConnectedNuclei[i] << endl;
+//        cout << "Final threshold value: " << thresholdValue << endl ;
+//        cout << "Final threshold value big : " << thresholdValueBig << endl ;
 
-        // Create the result image for colored version and binary version
-        Mat imgWTConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC3); // CV_8UC3
-        Mat imgWTBinaryConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC1); // CV_8UC3
-        // Fill labeled objects with random colors and make binary image
-        for (int i = 0; i < img.rows; i++)
-        {
-            for (int j = 0; j < img.cols; j++)
-            {
-                int index = markersConnectedNuclei.at<int>(i,j);
-                if (index > 0 && index <= static_cast<int>(contoursConnectedNuclei.size()))
-                {
-                    imgWTConnectedNuclei.at<Vec3b>(i,j) = colors2[index-1];
-                    imgWTBinaryConnectedNuclei.at<char>(i,j) = 255;
-                }
-                else
-                {
-                    imgWTConnectedNuclei.at<Vec3b>(i,j) =Vec3b(255,255,255);
-                    imgWTBinaryConnectedNuclei.at<char>(i,j) = 0;
-                }
-            }
-        }
+//        // Calculate the area of every markers manually after second WT
+//        float areaConnectedNuclei[contoursConnectedNuclei.size()+1] = {0};
+//        for (int row=0;row<markersConnectedNuclei.rows;row++)
+//        {
+//            for(int col=0;col<markersConnectedNuclei.cols;col++)
+//            {
+//                // because background are not included in contours , so we can use <contours.size()+1 or <=contours.size()
+//                for(size_t index=0;index<=contoursConnectedNuclei.size();index++)
+//                {
+//                    if(markersConnectedNuclei.at<int>(row,col)==index)
+//                        areaConnectedNuclei[index]++;
+//                }
+//            }
+//        }
 
-        // Show the result of WT
-        namedWindow("WT Result of Connected Nuclei",CV_WINDOW_NORMAL);
-        imshow("WT Result of Connected Nuclei", imgWTConnectedNuclei);
+//        //Print area result after second WT
+//        cout <<"Calculate area manually from second WT! \nResult:" << endl;
+//        for(size_t i=0; i<=contoursConnectedNuclei.size();i++)
+//            cout << "Area-" << i << ": " << areaConnectedNuclei[i] << endl;
 
-        for (int i = 0; i < img.rows; i++)
-        {
-            for (int j = 0; j < img.cols; j++)
-            {
-                if (markersConnectedNuclei.at<signed int>(i,j)<0)
-                {
-                    imgWTBinary.at<char>(i,j) = 0;
-                }
-            }
-        }
-        namedWindow("Merge Second WT Result",CV_WINDOW_NORMAL);
-        imshow("Merge Second WT Result",imgWTBinary);
-    }
-    // THE END OF WT PROCESS
+//        // Create the result image for colored version and binary version
+//        Mat imgWTConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC3); // CV_8UC3
+//        Mat imgWTBinaryConnectedNuclei = Mat::zeros(markersConnectedNuclei.size(), CV_8UC1); // CV_8UC3
+//        // Fill labeled objects with random colors and make binary image
+//        for (int i = 0; i < img.rows; i++)
+//        {
+//            for (int j = 0; j < img.cols; j++)
+//            {
+//                int index = markersConnectedNuclei.at<int>(i,j);
+//                if (index > 0 && index <= static_cast<int>(contoursConnectedNuclei.size()))
+//                {
+//                    imgWTConnectedNuclei.at<Vec3b>(i,j) = colors2[index-1];
+//                    imgWTBinaryConnectedNuclei.at<char>(i,j) = 255;
+//                }
+//                else
+//                {
+//                    imgWTConnectedNuclei.at<Vec3b>(i,j) =Vec3b(255,255,255);
+//                    imgWTBinaryConnectedNuclei.at<char>(i,j) = 0;
+//                }
+//            }
+//        }
+
+//        // Show the result of WT
+//        namedWindow("WT Result of Connected Nuclei",CV_WINDOW_NORMAL);
+//        imshow("WT Result of Connected Nuclei", imgWTConnectedNuclei);
+
+//        for (int i = 0; i < img.rows; i++)
+//        {
+//            for (int j = 0; j < img.cols; j++)
+//            {
+//                if (markersConnectedNuclei.at<signed int>(i,j)<0)
+//                {
+//                    imgWTBinary.at<char>(i,j) = 0;
+//                }
+//            }
+//        }
+//        namedWindow("Merge Second WT Result",CV_WINDOW_NORMAL);
+//        imshow("Merge Second WT Result",imgWTBinary);
+//    }
+//    // THE END OF WT PROCESS
 
 
     /*
