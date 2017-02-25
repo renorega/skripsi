@@ -205,10 +205,27 @@ int main(int argc, char *argv[])
     */
 
     // Show the result of img when assigned with original color
-    /*
-    namedWindow("Kmeans Result Colored",WINDOW_NORMAL);
-    imshow("Kmeans Result Colored", imgKMeansColor);
-    */
+//    namedWindow("Colored Result After Morph Operation",WINDOW_NORMAL);
+//    imshow("Colored Result After Morph Operation", imgKMeansColor);
+
+    // Transform the result after morph operation into binary images
+    Mat imgKMeansBinaryMorph(img.rows,img.cols,CV_8UC1);
+    for(int y=0;y<img.rows;y++){
+        for(int x=0;x<img.cols;x++){
+            if(imgKMeansColor.at<Vec3b>(y,x)!=Vec3b{255,255,255}) // jika label nukleus
+            {
+                imgKMeansBinaryMorph.at<char>(y,x)= 255; //diberi warna sesuai original
+            }
+
+           else
+            {
+                imgKMeansBinaryMorph.at<char>(y,x)= 0; //diberi warna sesuai original
+            }
+        }
+    }
+
+    namedWindow("Binary Result After Morph Operation",WINDOW_NORMAL);
+    imshow("Binary Result After Morph Operation", imgKMeansBinaryMorph);
 
     // Perform Dist Transform
     // Create imgDistInput because distanceTransform() need a CV_8U for input img
@@ -267,12 +284,12 @@ int main(int argc, char *argv[])
      circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
 
      // Show markers result
-     namedWindow("Markers First",CV_WINDOW_NORMAL);
-     imshow("Markers First", markers*10000);
+//     namedWindow("First WT Markers",CV_WINDOW_NORMAL);
+//     imshow("First WT Markers", markers*10000);
 
-    // Perform WT
+    // Perform First WT
     watershed(imgKMeansColor, markers);
-    cout << markers << endl;
+
     // Generate random colors
     vector<Vec3b> colors2;
     for (size_t i = 0; i < contours.size(); i++)
@@ -283,8 +300,11 @@ int main(int argc, char *argv[])
         colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
     }
     // Create the result image for colored version and binary version
-    Mat imgWTFirst = Mat::zeros(markers.size(), CV_8UC3); // CV_8UC3
-    Mat imgWTFirstBinary = Mat::zeros(markers.size(), CV_8UC1); // CV_8UC3
+//    Mat imgWTFirst = Mat::zeros(markers.size(), CV_8UC3); // CV_8UC3
+//    Mat imgWTFirstBinary = Mat::zeros(markers.size(), CV_8UC1); // CV_8UC3
+
+    Mat imgWT = Mat::zeros(markers.size(), CV_8UC3); // CV_8UC3
+    Mat imgWTBinary = Mat::zeros(markers.size(), CV_8UC1); // CV_8UC3
 
     // Fill labeled objects with random colors and make binary image
     for (int i = 0; i < img.rows; i++)
@@ -294,20 +314,36 @@ int main(int argc, char *argv[])
             int index = markers.at<int>(i,j);
             if (index > 0 && index <= static_cast<int>(contours.size()))
             {
-                imgWTFirst.at<Vec3b>(i,j) = imgKMeansColor.at<Vec3b>(i,j) ;
-                imgWTFirstBinary.at<char>(i,j) = 255;
+                imgWT.at<Vec3b>(i,j) = imgKMeansColor.at<Vec3b>(i,j) ;
+                //imgWTFirstBinary.at<char>(i,j) = 255;
             }
             else
             {
-                imgWTFirst.at<Vec3b>(i,j) =Vec3b(255,255,255);
-                imgWTFirstBinary.at<char>(i,j) = 0;
+                imgWT.at<Vec3b>(i,j) =Vec3b(255,255,255);
+                //imgWTFirstBinary.at<char>(i,j) = 0;
+            }
+        }
+    }
+
+    // Transforming first WT result into binary file
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            if (imgWT.at<Vec3b>(i,j)!=Vec3b{255,255,255})
+            {
+                imgWTBinary.at<char>(i,j) = 255;
+            }
+            else
+            {
+                imgWTBinary.at<char>(i,j) = 0;
             }
         }
     }
 
     // Show the result of WT
     namedWindow("First WT Result",CV_WINDOW_NORMAL);
-    imshow("First WT Result", imgWTFirstBinary);
+    imshow("First WT Result", imgWTBinary);
 
     // Calculate the area of every markers manually
     float area[contours.size()+1] = {0};
@@ -395,8 +431,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    namedWindow("Connected Nuclei Color",CV_WINDOW_NORMAL);
-    imshow("Connected Nuclei Color", connectedNucleiColor);
+//    namedWindow("Connected Nuclei Color",CV_WINDOW_NORMAL);
+//    imshow("Connected Nuclei Color", connectedNucleiColor);
 
     Mat allConnectedNucleiPeaks;
     vector<vector<Point>>listContoursConnectedNuclei;
@@ -410,9 +446,6 @@ int main(int argc, char *argv[])
             int targetContour = targetRegionConnectedNuclei[i];
             cout <<"Target contour of-" <<i<<":" << targetContour << endl;
             Mat connectedNuclei= markers== indexConnectedNuclei[i];
-
-            namedWindow("Connected Nuclei i",CV_WINDOW_NORMAL);
-            imshow("Connected Nuclei i", connectedNuclei);
 
             // Perform Dist Transform
             // Create imgDistInput because distanceTransform() need a CV_8U for input img
@@ -444,7 +477,6 @@ int main(int argc, char *argv[])
 
             vector<vector<Point>> contoursConnectedNucleiLarger;
             Mat connectedNucleiPeaksLarger;
-            cout << "Contours size : " << contoursConnectedNuclei.size() << endl;
 
             if(static_cast<int>(contoursConnectedNuclei.size())==targetContour)
             {
@@ -477,9 +509,6 @@ int main(int argc, char *argv[])
                 contoursConnectedNuclei.clear(); // clear vector
                 findContours(connectedNuclei8u, contoursConnectedNuclei, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-                cout << "Threshold Value: "<< thresholdValue;
-                cout << "\tTotal region :" << contoursConnectedNuclei.size() << endl;
-
                 if(static_cast<int>(contoursConnectedNuclei.size())==targetContour)
                 {
                     listContoursConnectedNuclei.insert(listContoursConnectedNuclei.end(),contoursConnectedNuclei.begin(),contoursConnectedNuclei.end());
@@ -509,8 +538,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    namedWindow("All Connected Nuclei Peaks",CV_WINDOW_NORMAL);
-    imshow("All Connected Nuclei Peaks", allConnectedNucleiPeaks);
+//    namedWindow("All Connected Nuclei Peaks",CV_WINDOW_NORMAL);
+//    imshow("All Connected Nuclei Peaks", allConnectedNucleiPeaks);
 
     // Create the marker image for the watershed algorithm
     Mat markersConnectedNuclei = Mat::zeros(allConnectedNucleiPeaks.size(), CV_32SC1); //SC1 -> Signed Char 1channel
@@ -521,8 +550,8 @@ int main(int argc, char *argv[])
             drawContours(markersConnectedNuclei, listContoursConnectedNuclei, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
 
     // Show markers result
-    namedWindow("Markers",CV_WINDOW_NORMAL);
-    imshow("Markers", markersConnectedNuclei*10000);
+    namedWindow("Markers Second WT",CV_WINDOW_NORMAL);
+    imshow("Markers Second WT", markersConnectedNuclei*10000);
 
     // Draw the background marker
     circle(markersConnectedNuclei, Point(5,5), 3, CV_RGB(255,255,255), -1);
@@ -538,14 +567,14 @@ int main(int argc, char *argv[])
             int index = markersConnectedNuclei.at<int>(i,j);
             if(index<0)
             {
-                imgWTFirst.at<Vec3b>(i,j) =Vec3b(255,255,255);
-                imgWTFirstBinary.at<char>(i,j) = 0;
+                imgWT.at<Vec3b>(i,j) =Vec3b(255,255,255);
+                imgWTBinary.at<char>(i,j) = 0;
             }
         }
     }
 
-    namedWindow("WT Result of Connected Nuclei",CV_WINDOW_NORMAL);
-    imshow("WT Result of Connected Nuclei", imgWTFirst);
+    namedWindow("Final WT Result",CV_WINDOW_NORMAL);
+    imshow("Final WT Result", imgWTBinary);
 
     /*
     // These lines of code will try to find the area of blobs
@@ -607,25 +636,6 @@ int main(int argc, char *argv[])
     namedWindow("keypoints",CV_WINDOW_NORMAL);
     imshow("keypoints", im_with_keypoints );
     */
-
-    // Extract colored nuclei from WT
-//    Mat imgWTFinal(img.rows,img.cols,CV_8UC3);
-//    for (int i = 0; i < img.rows; i++)
-//    {
-//        for (int j = 0; j < img.cols; j++)
-//        {
-//            if (imgWTBinaryConnectedNuclei.at<char>(i,j))
-//            {
-//                imgWTFinal.at<Vec3b>(i,j)= imgKMeansColor.at<Vec3b>(i,j); // beri sesuai warna
-//            }
-//            else
-//            {
-//                imgWTFinal.at<Vec3b>(i,j) = {255,255,255}; //jika tidak beri warna putih
-//            }
-//        }
-//    }
-//    namedWindow("Img WT Final",CV_WINDOW_NORMAL);
-//    imshow("Img WT Final", imgWTFinal);
 
     waitKey();
     destroyAllWindows();
