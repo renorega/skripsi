@@ -7,26 +7,65 @@ using namespace std;
 using namespace cv;
 
 // ----------------------------- FUNCTION DECLARATION------------------------------
+Mat imgOriginal;
 Mat preprocessing(Mat img);
 Mat readImage(string path);
 void showImage(string name,Mat img);
 Mat segmentation(Mat img,int K);
-Mat morphologicalOperation(Mat img);
-Mat watershedTransformation(Mat img, vector<vector<Point> > &contours, Mat &imgMorphColor);
+
+class morphologicalOperationClass
+{
+private:
+    Mat img, imgResult,imgResultColor;
+    int kernelSize;
+public:
+    morphologicalOperationClass(Mat img,int kernelSize=7)
+    {
+        this->img = img;
+        this->kernelSize = kernelSize;
+    }
+
+    void run();
+    Mat getResult(){return imgResult;}
+    Mat getResultColor(){return imgResultColor;}
+};
+
+class watershedClass
+{
+private:
+    Mat img,imgColor, imgDistInput, imgDistTransform, dist_8u, markers,imgResult, imgResultColor;
+    float thresholdValue;
+    vector<vector<Point>> contours;
+
+public:
+    watershedClass(Mat img,float thresholdValue=0.4)
+    {
+        this->img = img;
+        this->thresholdValue = thresholdValue;
+    }
+
+    void run();
+    float getThreshold(){ return thresholdValue;}
+    Mat getMarkers(){return markers;}
+    vector<vector<Point>> getContours(){return contours;}
+    Mat getResult(){return imgResult;}
+    Mat getResultColor(){return imgResultColor;}
+
+};
 
 // ----------------------------------- MAIN FUNCTION--------------------------------------
 int main()
 {
     //1. READ IMAGE
     string location = "/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/";
-    string nameFile= "5-7.jpg";
+    string nameFile= "8-9.jpg";
     cout <<"File: " << nameFile << endl;
-    Mat img = readImage(location+nameFile);
-    showImage("Original",img);
-    cout << "img rows : " << img.rows << " img cols :" << img.cols << endl;
+    imgOriginal = readImage(location+nameFile);
+    showImage("Original",imgOriginal);
+    cout << "img rows : " <<  imgOriginal.rows << " img cols :" << imgOriginal.cols << endl;
 
     //2. PERFORM PREPROCESSING
-    Mat imgPreprocessing= preprocessing(img);
+    Mat imgPreprocessing= preprocessing(imgOriginal);
 
     //3. PERFORM SEGMENTATION
     int K = 4;
@@ -34,73 +73,24 @@ int main()
     showImage("Kmeans Binary",imgKMeans);
 
     //4. PERFORM MORPHOLOGICAL OPENING AND CLOSING
-    Mat imgMorph = morphologicalOperation(imgKMeans);
-
-    // Colored result of Morphological Operation
-    Mat imgMorphColor(img.rows,img.cols,CV_8UC3);
-    for(int y=0;y<img.rows;y++){
-        for(int x=0;x<img.cols;x++){
-            if(imgMorph.at<float>(y,x)==255) // jika label nukleus
-            {
-                imgMorphColor.at<Vec3b>(y,x)= img.at<Vec3b>(y,x); //diberi warna sesuai original
-            }
-
-           else
-            {
-                imgMorphColor.at<Vec3b>(y,x) = {255,255,255}; //jika tidak diberi warna
-            }
-        }
-    }
-
-    showImage("Morph Result Colored",imgMorphColor);
+    morphologicalOperationClass morph(imgKMeans);
+    morph.run();
+    Mat imgMorph = morph.getResult();
+    Mat imgMorphColor = morph.getResultColor();
 
     //5. PERFORMING WATERSHED TRANSFORMATION
-    float thresholdValue = 0.4;
-    vector<vector<Point> > contours;
-    Mat markers = watershedTransformation(imgMorph,contours,imgMorphColor);
-
-    // Generate random colors
-    vector<Vec3b> colors2;
-    for (size_t i = 0; i < contours.size(); i++)
-    {
-        int b = theRNG().uniform(0, 255);
-        int g = theRNG().uniform(0, 255);
-        int r = theRNG().uniform(0, 255);
-        colors2.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
-    }
+    watershedClass wt(imgMorph);
+    wt.run();
+    float thresholdValue = wt.getThreshold();
+    vector<vector<Point> > contours = wt.getContours();
+    Mat markers = wt.getMarkers();
 
     // Create the result image for colored version and binary version
-    Mat imgWT = Mat::zeros(markers.size(), CV_8UC3); // CV_8UC3
-    Mat imgWTBinary = Mat::zeros(markers.size(), CV_8UC1); // CV_8UC3
-
-    // Fill labeled objects with random colors and make binary image
-    for (int i = 0; i < img.rows; i++)
-    {
-        for (int j = 0; j < img.cols; j++)
-        {
-            int index = markers.at<int>(i,j);
-            if (index > 0 && index <= static_cast<int>(contours.size()))
-                imgWT.at<Vec3b>(i,j) = imgMorphColor.at<Vec3b>(i,j) ;
-            else
-                imgWT.at<Vec3b>(i,j) =Vec3b(255,255,255);
-        }
-    }
-
-    // Transforming first WT result into binary file
-    for (int i = 0; i < img.rows; i++)
-    {
-        for (int j = 0; j < img.cols; j++)
-        {
-            if (imgWT.at<Vec3b>(i,j)!=Vec3b{255,255,255})
-                imgWTBinary.at<char>(i,j) = 255;
-            else
-                imgWTBinary.at<char>(i,j) = 0;
-        }
-    }
+    Mat imgWT = wt.getResultColor();
+    Mat imgWTBinary = wt.getResult();
 
     // Show the result of WT
-    showImage("First WT Result",imgWTBinary);
-
+    showImage("First WT Result",imgWT);
 
     // CALCULATE THE AREA OF EVERY REGION IN MARKERS MANUALLY
     float area[contours.size()+1] = {0};
@@ -131,6 +121,7 @@ int main()
     for(int i=0; i<=static_cast<int>(contours.size());i++)
         cout << "Area-" << i << ": " << area[i] << endl;
 
+    // Find connected nuclei
     cout << "Contours size: " << contours.size() << endl;
     for(int i=0; i<=static_cast<int>(contours.size());i++)
         // If background are extracted into WT region, so region with more than 100000 pixels are ignored
@@ -155,7 +146,7 @@ int main()
 
 
     // PERFORM SECOND WT
-    Mat connectedNucleiColor(img.rows,img.cols,CV_8UC3);
+    Mat connectedNucleiColor(imgOriginal.rows,imgOriginal.cols,CV_8UC3);
     Mat allConnectedNucleiPeaks;
     vector<vector<Point>>listContoursConnectedNuclei;
     Mat markersConnectedNuclei ;
@@ -177,11 +168,11 @@ int main()
         showImage("Connected Nuclei",connectedNuclei);
 
         // Colored result of Connected Nuclei
-        Mat connectedNucleiColor(img.rows,img.cols,CV_8UC3);
+        Mat connectedNucleiColor(imgOriginal.rows,imgOriginal.cols,CV_8UC3);
 
-        for(int y=0;y<img.rows;y++)
+        for(int y=0;y<imgOriginal.rows;y++)
         {
-            for(int x=0;x<img.cols;x++)
+            for(int x=0;x<imgOriginal.cols;x++)
             {
                 if(connectedNuclei.at<unsigned char>(y,x)) // jika ada warna atau tidak sama dengan 0
                     connectedNucleiColor.at<Vec3b>(y,x)= imgMorphColor.at<Vec3b>(y,x); //diberi warna sesuai original
@@ -297,9 +288,9 @@ int main()
         circle(markersConnectedNuclei, Point(5,5), 3, CV_RGB(255,255,255), -1);
         watershed(connectedNucleiColor,markersConnectedNuclei);
 
-        for (int i = 0; i < img.rows; i++)
+        for (int i = 0; i < imgOriginal.rows; i++)
         {
-            for (int j = 0; j < img.cols; j++)
+            for (int j = 0; j < imgOriginal.cols; j++)
             {
                 int index = markersConnectedNuclei.at<int>(i,j);
                 if(index<0)
@@ -322,22 +313,6 @@ int main()
 
 
 //-------------------------------FUNCTIONS DEFINITION-----------------------------------
-
-Mat morphologicalOperation(Mat img)
-{
-    Mat imgResult;
-    int kernelSize = 7;
-    Mat element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
-    morphologyEx(img, imgResult, MORPH_OPEN, element );
-
-    // Perform Morphological Closing
-    kernelSize = 7;
-    element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
-
-    // Perform Morphological Opening + Closing
-    morphologyEx( imgResult, imgResult, MORPH_CLOSE, element );
-    return imgResult;
-}
 
 void showImage(string name,Mat img)
 {
@@ -424,30 +399,42 @@ Mat segmentation(Mat img,int K)
     return imgResult;
 }
 
-Mat watershedTransformation(Mat img, vector<vector<Point>> &contours,Mat &imgMorphColor)
+void morphologicalOperationClass::run()
 {
-    Mat imgDistInput;
+    Mat element = getStructuringElement( MORPH_RECT, Size( kernelSize,kernelSize));
+    morphologyEx(img, imgResult, MORPH_OPEN, element );
+    morphologyEx( imgResult, imgResult, MORPH_CLOSE, element );
+    imgResultColor = Mat(imgOriginal.rows,imgOriginal.cols,CV_8UC3);
+    for(int y=0;y<imgOriginal.rows;y++)
+        for(int x=0;x<imgOriginal.cols;x++)
+        {
+            if(imgResult.at<float>(y,x)==255) // jika label nukleus
+                imgResultColor.at<Vec3b>(y,x)= imgOriginal.at<Vec3b>(y,x); //diberi warna sesuai original
+            else
+                imgResultColor.at<Vec3b>(y,x) = {255,255,255}; //jika tidak diberi warna
+        }
+}
+
+void watershedClass::run()
+{
+    imgColor = Mat(img.rows,img.cols,CV_8UC3);
+    for(int y=0;y<imgOriginal.rows;y++){
+        for(int x=0;x<imgOriginal.cols;x++){
+            if(img.at<float>(y,x)==255) // jika label nukleus
+                imgColor.at<Vec3b>(y,x)= imgOriginal.at<Vec3b>(y,x); //diberi warna sesuai original
+
+           else
+                imgColor.at<Vec3b>(y,x) = {255,255,255}; //jika tidak diberi warna
+        }
+    }
+
     img.convertTo(imgDistInput,CV_8UC3);
-
-    Mat imgDistTransform;
     distanceTransform(imgDistInput, imgDistTransform, CV_DIST_L2, 5);
-
     normalize(imgDistTransform, imgDistTransform, 0, 1., NORM_MINMAX);
-
-    float thresholdValue = 0.4;
     threshold(imgDistTransform, imgDistTransform, thresholdValue, 1., CV_THRESH_BINARY);
-
-    Mat dist_8u;
     imgDistTransform.convertTo(dist_8u, CV_8U);
-
-     // Find total markers
-    //vector<vector<Point> > contours;
     findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-
-    // Create the marker image for the watershed algorithm
-    Mat markers = Mat::zeros(imgDistTransform.size(), CV_32SC1); //SC1 -> Signed Char 1channel
-
-    // Draw the foreground markers
+    markers = Mat::zeros(imgDistTransform.size(), CV_32SC1); //SC1 -> Signed Char 1channel
     for (size_t i = 0; i < contours.size(); i++)
         drawContours(markers, contours, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
 
@@ -455,7 +442,31 @@ Mat watershedTransformation(Mat img, vector<vector<Point>> &contours,Mat &imgMor
     circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
 
     // Perform First WT
-    watershed(imgMorphColor, markers);
+    watershed(imgColor, markers);
 
-    return markers;
+    imgResultColor = Mat(img.rows,img.cols,CV_8UC3);
+    imgResult= Mat::zeros(img.size(), CV_8UC1); // CV_8UC3
+    for (int i = 0; i < imgOriginal.rows; i++)
+    {
+        for (int j = 0; j < imgOriginal.cols; j++)
+        {
+            int index = markers.at<int>(i,j);
+            if (index > 0 && index <= static_cast<int>(contours.size()))
+                imgResult.at<char>(i,j) = 255;
+            else
+                imgResult.at<char>(i,j) = 0;
+        }
+    }
+
+    for (int i = 0; i < imgOriginal.rows; i++)
+    {
+        for (int j = 0; j < imgOriginal.cols; j++)
+        {
+            if (imgResult.at<char>(i,j))
+                imgResultColor.at<Vec3b>(i,j) = imgColor.at<Vec3b>(i,j) ;
+            else
+                imgResultColor.at<Vec3b>(i,j) =Vec3b(255,255,255);
+        }
+    }
+
 }
