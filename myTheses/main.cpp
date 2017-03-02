@@ -50,6 +50,7 @@ class watershedClass
 {
 private:
     Mat img,imgColor,imgResult,imgResultColor,markers;
+    const float thresholdValueBase;
     float thresholdValue;
     vector<vector<Point>> contours;
     vector<float> area,targetRegionConnectedNuclei;
@@ -65,10 +66,10 @@ private:
     Mat connectedNuclei,connectedNucleiColor;
 
 public:
-    watershedClass(Mat img,float thresholdValue=0.4)
+    watershedClass(Mat img,const float _thresholdValueBase=0.4) : thresholdValueBase(_thresholdValueBase)
     {
         this->img = img;
-        this->thresholdValue = thresholdValue;
+        //this->thresholdValue = thresholdValue;
     }
     void run();
     void calculateArea();
@@ -93,7 +94,7 @@ int main()
 {
     //1. READ IMAGE
     string location = "/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/";
-    string nameFile= "103-107.jpg";
+    string nameFile= "88-94.jpg";
     cout <<"File: " << nameFile << endl;
     imgOriginal = readImage(location+nameFile);
     showImage("Original",imgOriginal);
@@ -113,7 +114,7 @@ int main()
     morph.run();
 
     //5. PERFORMING WATERSHED TRANSFORMATION
-    watershedClass wt(morph.getResult());
+    watershedClass wt(morph.getResult(),0.3);
     wt.run();
     showImage("First WT Result",wt.getResultColor());
     wt.calculateArea();
@@ -243,7 +244,7 @@ void watershedClass::run()
     img.convertTo(imgDistInput,CV_8UC3);
     distanceTransform(imgDistInput, imgDistTransform, CV_DIST_L2, 5);
     normalize(imgDistTransform, imgDistTransform, 0, 1., NORM_MINMAX);
-    threshold(imgDistTransform, imgDistTransform, thresholdValue, 1., CV_THRESH_BINARY);
+    threshold(imgDistTransform, imgDistTransform, thresholdValueBase, 1., CV_THRESH_BINARY);
     imgDistTransform.convertTo(dist_8u, CV_8U);
     findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
     markers = Mat::zeros(imgDistTransform.size(), CV_32SC1); //SC1 -> Signed Char 1channel
@@ -328,8 +329,6 @@ void watershedClass::findConnectedNuclei()
         for (int i=0;i<static_cast<int>(indexConnectedNuclei.size());i++)
             cout << "Index connected nuclei: " << indexConnectedNuclei[i] << " Area connected nuclei : " << area[indexConnectedNuclei[i]] << " Target region: " << targetRegionConnectedNuclei[i] << endl;
         runSecondWT();
-
-        showImage("Connected Nuclei",connectedNuclei);
     }
 }
 void watershedClass::runSecondWT()
@@ -342,6 +341,8 @@ void watershedClass::extractConnectedNuclei()
 {
     for(int i=0;i<static_cast<int>(indexConnectedNuclei.size());i++)
         connectedNuclei = connectedNuclei + (markers==indexConnectedNuclei[i]);
+
+    showImage("Connected Nuclei",connectedNuclei);
 
     connectedNucleiColor = Mat(imgColor.rows,imgColor.cols,CV_8UC3);
     for(int y=0;y<imgOriginal.rows;y++)
@@ -369,7 +370,7 @@ void watershedClass::findValue()
         distanceTransform(connectedNucleiDistInput, connectedNucleiDistTransform, CV_DIST_L2, 5);
         normalize(connectedNucleiDistTransform, connectedNucleiDistTransform, 0, 1., NORM_MINMAX);
 
-        thresholdValue += 0.05; // This value for thresholding second WT
+        thresholdValue = thresholdValueBase+0.05; // This value for thresholding second WT
         Mat connectedNucleiPeaks;
         threshold(connectedNucleiDistTransform, connectedNucleiPeaks, thresholdValue, 1., CV_THRESH_BINARY);
 
@@ -389,7 +390,10 @@ void watershedClass::findValue()
         Mat connectedNucleiPeaksLarger;
 
         if(static_cast<int>(contoursConnectedNuclei.size())==targetContour)
+        {
             listContoursConnectedNuclei.insert(listContoursConnectedNuclei.end(),contoursConnectedNuclei.begin(),contoursConnectedNuclei.end());
+            successWT = true;
+        }
 
         while(static_cast<int>(contoursConnectedNuclei.size())!=targetContour)
         {
@@ -434,7 +438,8 @@ void watershedClass::findValue()
         }
         */
 
-        if(!successWT && !isLargerSize)
+        //if(!successWT && !isLargerSize)
+        if(!successWT)
             cout << "This is single nucleus!" << endl;
 
         // END OF NEW SECOND WT
