@@ -55,4 +55,15 @@ void segmentationClass::assignColor()
     imgResult= Mat(img.rows, img.cols, CV_32F);
     for(int i=0; i<img.cols*img.rows; i++)
         imgResult.at<float>(i/img.cols, i%img.cols) = (float)(colors[bestLabels.at<int>(0,i)]);
+
+    // Give color for imgResultColor
+    imgResultColor = Mat(img.rows,img.cols,CV_8UC3);
+    for(int rows=0;rows<img.rows;rows++)
+        for(int cols=0;cols<img.cols;cols++)
+        {
+            if(imgResult.at<float>(rows,cols))
+                imgResultColor.at<Vec3b>(rows,cols) = imgReference.at<Vec3b>(rows,cols);
+            else
+                imgResultColor.at<Vec3b>(rows,cols) = Vec3b::all(255);
+        }
 }

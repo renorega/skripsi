@@ -18,7 +18,7 @@ int main()
     //1. READ IMAGE
     string location = "/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/AfarelAzis_17april_01680124/";
     //string location = "/home/reno/skripsi/ALL_SAMPLES/ALL_Sardjito/gambar_29mei/sugesti_01684902_26mei/";
-    string nameFile= "8-9.jpg";
+    string nameFile= "1-4.jpg";
     cout <<"File: " << nameFile << endl;
     Mat imgOriginal = imread(location+nameFile,IMREAD_COLOR);
     showImage("Original",imgOriginal);
@@ -28,15 +28,16 @@ int main()
     Mat imgPreprocessing= preprocessing(imgOriginal);
 
     //3. PERFORM SEGMENTATION
-    segmentationClass segment(imgPreprocessing);
+    segmentationClass segment(imgPreprocessing,imgOriginal);
     segment.run();
     Mat imgKMeans = segment.getResult();
     showImage("Kmeans Binary",imgKMeans);
+    showImage("KMeans Color",segment.getResultColor());
 
     //4. PERFORM MORPHOLOGICAL OPENING AND CLOSING
     morphologicalOperationClass morph(imgKMeans,imgOriginal);
     morph.run();
-
+    showImage("Img morph",morph.getResultColor());
     //5. PERFORMING WATERSHED TRANSFORMATION
     watershedClass wt(morph.getResult(),imgOriginal,0.3);
     wt.run();

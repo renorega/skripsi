@@ -26,12 +26,12 @@ void watershedClass::run()
     threshold(imgDistTransform, imgDistTransform, thresholdValueBase, 1., CV_THRESH_BINARY);
     imgDistTransform.convertTo(dist_8u, CV_8U);
     findContours(dist_8u, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+//    cout << "contours size: " << contours[0][0].x<< endl;
     markers = Mat::zeros(imgDistTransform.size(), CV_32SC1); //SC1 -> Signed Char 1channel
     for (size_t i = 0; i < contours.size(); i++)
         drawContours(markers, contours, static_cast<int>(i), Scalar::all(static_cast<int>(i)+1), -1);
 
     circle(markers, Point(5,5), 3, CV_RGB(255,255,255), -1);
-
     watershed(imgColor, markers);
 
     imgResultColor = Mat(img.rows,img.cols,CV_8UC3);
